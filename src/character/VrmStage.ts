@@ -155,6 +155,20 @@ export class VrmStage {
       }
     }
 
+    // Sanitize expression bindings: fix models where 'happy' was bound to 'はぅ' (distorted comic eyes) instead of '笑い' (natural smile)
+    if (vrm.expressionManager) {
+      const happyExp = vrm.expressionManager.getExpression("happy");
+      if (happyExp && (happyExp as any)._binds) {
+        for (const b of (happyExp as any)._binds) {
+          const mesh = b.primitives?.[0];
+          const dict = mesh?.morphTargetDictionary;
+          if (dict && dict["はぅ"] === b.index && dict["笑い"] !== undefined) {
+            b.index = dict["笑い"];
+          }
+        }
+      }
+    }
+
     this.scene.add(vrm.scene);
     this.vrm = vrm;
     this.motion = new MotionDirector(vrm, idleClip);
@@ -290,24 +304,24 @@ export class VrmStage {
     const em = this.vrm?.expressionManager;
     if (!em) return;
 
-    // Smooth emotion transitions with 0.4s fade (1.0 / 0.4 = 2.5)
+    // Smooth emotion transitions (~0.3s responsive natural fade)
     const ems: EmotionName[] = ["neutral", "happy", "relaxed", "angry", "sad", "surprised"];
     for (const e of ems) {
       const target = this.currentEmotion === e ? 1.0 : 0.0;
-      this.emotionWeights[e] = THREE.MathUtils.lerp(this.emotionWeights[e], target, Math.min(1, dt * 2.5));
+      this.emotionWeights[e] = THREE.MathUtils.lerp(this.emotionWeights[e], target, Math.min(1, dt * 8.0));
     }
 
-    // Strict 0.6 combined mouth weight limit:
-    // When viseme is active (speaking), emotion mouth influence is scaled to 0.2
-    // Viseme target is 0.4, ensuring emotion (0.2) + viseme (0.4) <= 0.60 maximum!
+    // Strict mouth and facial expression limit:
+    // When viseme is active (speaking), emotion mouth influence is scaled to 0.20
+    // Viseme target is 0.40, ensuring emotion (0.20) + viseme (0.40) <= 0.60 maximum!
     const isSpeaking = this.viseme?.isActive ?? false;
-    const maxEmotion = isSpeaking ? 0.2 : 0.6;
-    em.setValue("happy", Math.min(maxEmotion, this.emotionWeights.happy * maxEmotion));
-    em.setValue("relaxed", Math.min(maxEmotion, this.emotionWeights.relaxed * maxEmotion));
-    em.setValue("angry", Math.min(maxEmotion, this.emotionWeights.angry * maxEmotion));
-    em.setValue("sad", Math.min(maxEmotion, this.emotionWeights.sad * maxEmotion));
+    const maxEmotion = isSpeaking ? 0.20 : 0.45;
+    em.setValue("happy", this.emotionWeights.happy * maxEmotion);
+    em.setValue("relaxed", this.emotionWeights.relaxed * maxEmotion);
+    em.setValue("angry", this.emotionWeights.angry * maxEmotion);
+    em.setValue("sad", this.emotionWeights.sad * maxEmotion);
     if (em.expressionMap["surprised"]) {
-      em.setValue("surprised", Math.min(maxEmotion, this.emotionWeights.surprised * maxEmotion));
+      em.setValue("surprised", this.emotionWeights.surprised * maxEmotion);
     }
   }
 

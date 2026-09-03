@@ -82,16 +82,10 @@ root.innerHTML = `
     </div>
     <div class="drawer-grid">
       <button class="gesture-btn" data-gesture="wave">👋 인사</button>
-      <button class="gesture-btn" data-gesture="bow">🙇 목례</button>
-      <button class="gesture-btn" data-gesture="curious">❓ 호기심</button>
-      <button class="gesture-btn" data-gesture="giggle">🤭 킥킥</button>
-      <button class="gesture-btn" data-gesture="proud">👑 뿌듯</button>
-      <button class="gesture-btn" data-gesture="sing">🎵 노래</button>
-      <button class="gesture-btn" data-gesture="cheer">✨ 환호</button>
-      <button class="gesture-btn" data-gesture="peace">✌️ 브이</button>
-      <button class="gesture-btn" data-gesture="thinking">🤔 생각</button>
-      <button class="gesture-btn" data-gesture="shy">🌸 수줍</button>
       <button class="gesture-btn" data-gesture="nod">😊 끄덕</button>
+      <button class="gesture-btn" data-gesture="explain">💬 설명</button>
+      <button class="gesture-btn" data-gesture="laugh">😄 웃음</button>
+      <button class="gesture-btn" data-gesture="think">🤔 생각</button>
     </div>
     <div class="gestures-quickbar">
       <button id="btn-mute" type="button" class="drawer-action-btn" title="음소거 켜기/끄기">🔊 음소거</button>

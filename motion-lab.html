@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VRoid Hub Reference Motion Lab (/dev/vrm-motion-lab)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #0f172a; color: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #canvas { width: 100%; height: 100%; display: block; }
+    #panel {
+      position: absolute; top: 16px; left: 16px; width: 440px; max-height: calc(100vh - 32px);
+      overflow-y: auto; background: rgba(15, 23, 42, 0.94); border: 1px solid #334155;
+      border-radius: 12px; padding: 18px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6); backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+    .subtitle { font-size: 11px; color: #94a3b8; margin-bottom: 14px; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; margin: 12px 0 6px 0; }
+    .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
+    .btn-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+    button {
+      background: #1e293b; border: 1px solid #475569; color: #f1f5f9;
+      padding: 8px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s ease; text-align: left;
+    }
+    button:hover { background: #334155; border-color: #38bdf8; color: #38bdf8; }
+    button.active { background: #0284c7; border-color: #38bdf8; color: #ffffff; font-weight: 700; }
+    button.btn-compare { background: #312e81; border-color: #6366f1; color: #e0e7ff; }
+    button.btn-compare:hover { background: #3730a3; border-color: #818cf8; color: #ffffff; }
+    button.btn-control { text-align: center; background: #0f172a; border-color: #334155; }
+    .hud {
+      background: #020617; border: 1px solid #1e293b; border-radius: 6px;
+      padding: 10px; font-family: ui-monospace, monospace; font-size: 11px;
+      color: #94a3b8; margin-top: 10px;
+    }
+    .hud-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .hud-val { color: #38bdf8; font-weight: 600; }
+    .hud-val.ok { color: #4ade80; }
+    .hud-val.warn { color: #fbbf24; }
+    .hud-val.err { color: #f87171; }
+    pre#log {
+      background: #020617; border: 1px solid #1e293b; padding: 8px;
+      border-radius: 6px; overflow-x: auto; max-height: 180px; font-size: 10px;
+      color: #64748b; white-space: pre-wrap; word-break: break-all; margin-top: 10px;
+    }
+    .slider-container { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    input[type=range] { flex: 1; accent-color: #38bdf8; cursor: pointer; }
+    .badge {
+      display: inline-block; padding: 2px 6px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+    }
+    .badge-vrma { background: #065f46; color: #6ee7b7; }
+    .badge-mixamo { background: #701a75; color: #f0abfc; }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h2>
+      <span>VRoid Hub Reference Motion Lab</span>
+    </h2>
+    <div class="subtitle">Official VRMA vs Current AI Gesture Reference Testbed</div>
+
+    <div class="section-title">1. Official VRoid Project VRMA (7종) <span class="badge badge-vrma">Native VRMA</span></div>
+    <div class="btn-grid">
+      <button id="btn-vrma-1">VRMA_01 Show full body</button>
+      <button id="btn-vrma-2">VRMA_02 Greeting</button>
+      <button id="btn-vrma-3">VRMA_03 Peace sign</button>
+      <button id="btn-vrma-4">VRMA_04 Shoot</button>
+      <button id="btn-vrma-5">VRMA_05 Spin</button>
+      <button id="btn-vrma-6">VRMA_06 Model pose</button>
+      <button id="btn-vrma-7" style="grid-column: span 2;">VRMA_07 Squat</button>
+    </div>
+
+    <div class="section-title">2. Current AI Gestures (Mixamo FBX) <span class="badge badge-mixamo">Retargeted FBX</span></div>
+    <div class="btn-grid">
+      <button id="btn-mix-wave">Current: wave.fbx</button>
+      <button id="btn-mix-nod">Current: nod.fbx</button>
+      <button id="btn-mix-explain">Current: explain.fbx</button>
+      <button id="btn-mix-laugh">Current: laugh.fbx</button>
+      <button id="btn-mix-think" style="grid-column: span 2;">Current: think.fbx</button>
+    </div>
+
+    <div class="section-title">3. Head-to-Head Comparison Modes</div>
+    <div class="btn-grid">
+      <button id="btn-cmp-greeting" class="btn-compare">A/B: Greeting Comparison</button>
+      <button id="btn-cmp-pose" class="btn-compare">A/B: Pose Comparison</button>
+    </div>
+
+    <div class="section-title">4. Playback Controls</div>
+    <div class="btn-grid-3">
+      <button id="btn-play" class="btn-control">Play/Pause</button>
+      <button id="btn-stop" class="btn-control">Stop</button>
+      <button id="btn-loop" class="btn-control">Loop: ON</button>
+    </div>
+    <div class="slider-container">
+      <span style="font-size: 10px; color: #94a3b8;">Time:</span>
+      <input type="range" id="scrubber" min="0" max="100" value="0" />
+      <span id="time-val" style="font-size: 10px; font-family: monospace; color: #38bdf8; width: 45px;">0.0s</span>
+    </div>
+
+    <div class="section-title">5. Real-Time Diagnostics HUD</div>
+    <div class="hud">
+      <div class="hud-row"><span>Active Motion:</span><span id="hud-motion" class="hud-val">None</span></div>
+      <div class="hud-row"><span>Duration / Tracks:</span><span id="hud-meta" class="hud-val">-</span></div>
+      <div class="hud-row"><span>Hips Root Displacement:</span><span id="hud-hips" class="hud-val">-</span></div>
+      <div class="hud-row"><span>Right Hand World Pos:</span><span id="hud-rhand" class="hud-val">-</span></div>
+      <div class="hud-row"><span>Head World Yaw:</span><span id="hud-headyaw" class="hud-val">-</span></div>
+      <div class="hud-row"><span>T-Pose Distance:</span><span id="hud-tpose" class="hud-val ok">Normal</span></div>
+      <div class="hud-row"><span>Isolation Contract:</span><span class="hud-val ok">Custom Bones 100% OFF</span></div>
+    </div>
+
+    <pre id="log"></pre>
+  </div>
+  <canvas id="canvas"></canvas>
+  <script type="module" src="/src/debug/motionLab.ts"></script>
+</body>
+</html>

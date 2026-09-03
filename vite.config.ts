@@ -12,6 +12,7 @@ export default defineConfig({
         overlay: path.resolve(__dirname, "overlay.html"),
         settings: path.resolve(__dirname, "settings.html"),
         rigtest: path.resolve(__dirname, "rigtest.html"),
+        motionLab: path.resolve(__dirname, "motion-lab.html"),
       },
     },
   },

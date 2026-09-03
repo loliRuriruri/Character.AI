@@ -59,6 +59,8 @@ function stopAudio(): void {
   speechSynthesis.cancel();
   stage.stopVisemes();
   window.miku.send(Ipc.SPEAKING, false);
+  stage.setSpeaking(false);
+  stage.setEmotion("neutral");
   motionEventBus.emit({ type: "tts:end" });
 }
 
@@ -69,6 +71,12 @@ function playNextInQueue(): void {
     stage.setSpeaking(false);
     stage.stopVisemes();
     motionEventBus.emit({ type: "tts:end" });
+    // Restore gentle neutral emotion after natural afterglow pause
+    setTimeout(() => {
+      if (!isQueuePlaying) {
+        stage.setEmotion("neutral");
+      }
+    }, 1200);
     return;
   }
 
@@ -461,8 +469,8 @@ hud.querySelector("#btn-toggle-proc")?.addEventListener("click", () => {
 
 hud.querySelector("#btn-test-idle")?.addEventListener("click", () => stage.play("idle"));
 hud.querySelector("#btn-test-wave")?.addEventListener("click", () => stage.play("wave"));
-hud.querySelector("#btn-test-think")?.addEventListener("click", () => stage.play("thinking"));
-hud.querySelector("#btn-test-proud")?.addEventListener("click", () => stage.play("proud"));
+hud.querySelector("#btn-test-think")?.addEventListener("click", () => stage.play("think"));
+hud.querySelector("#btn-test-proud")?.addEventListener("click", () => stage.play("explain"));
 
 // Realtime HUD Status Loop
 setInterval(() => {

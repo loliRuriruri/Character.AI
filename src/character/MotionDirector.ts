@@ -16,6 +16,9 @@ const GESTURE_START_OFFSETS: Record<string, number> = {
   think: 0.30,   // 0.30s rest pause skip -> immediate hand to chin rise
 };
 
+const _scratchEuler = new THREE.Euler();
+const _scratchQuat = new THREE.Quaternion();
+
 /**
  * MotionDirector — Warudo & ChatVRM style 4-Layer Motion Controller
  * 
@@ -27,6 +30,9 @@ const GESTURE_START_OFFSETS: Record<string, number> = {
 export class MotionDirector {
   private vrm: VRM;
   readonly mixer: THREE.AnimationMixer;
+  private restQuats: Map<string, THREE.Quaternion> = new Map();
+  private fallbackTimer: any = null;
+  private frameCounter: number = 0;
 
   // Layer 1: Base Idle Action
   private idleAction: THREE.AnimationAction | null = null;
@@ -72,15 +78,71 @@ export class MotionDirector {
   private leftWristTarget = new THREE.Quaternion();
   private rightWristTarget = new THREE.Quaternion();
 
+  private static readonly REST_FINGER_QUATS: Record<string, number[]> = {
+    "Normalized_Thumb_ProximalR": [0.0119, -0.0085, 0.0382, 0.9992],
+    "Normalized_Thumb_IntermediateR": [-0.1379, -0.2302, 0.1611, 0.9497],
+    "Normalized_Thumb_DistalR": [0.1327, -0.0385, 0.1056, 0.9848],
+    "Normalized_Index_ProximalR": [-0.001, 0.0108, -0.0595, 0.9982],
+    "Normalized_Index_IntermediateR": [0, 0.0121, 0.1513, -0.9884],
+    "Normalized_Index_DistalR": [0, -0.0058, -0.0702, 0.9975],
+    "Normalized_Middle_ProximalR": [0.0036, -0.0194, -0.1305, 0.9912],
+    "Normalized_Middle_IntermediateR": [0, 0.0115, 0.1515, -0.9884],
+    "Normalized_Middle_DistalR": [0.0001, -0.0134, -0.1602, 0.987],
+    "Normalized_Ring_ProximalR": [-0.0045, 0.0263, 0.1775, -0.9838],
+    "Normalized_Ring_IntermediateR": [0, 0.015, 0.1817, -0.9832],
+    "Normalized_Ring_DistalR": [0, -0.0128, -0.1555, 0.9878],
+    "Normalized_Little_ProximalR": [0.0035, -0.0425, -0.2285, 0.9726],
+    "Normalized_Little_IntermediateR": [0.0003, -0.0115, -0.1515, 0.9884],
+    "Normalized_Little_DistalR": [0.0003, -0.0122, -0.1438, 0.9895],
+    "Normalized_Thumb_ProximalL": [0.0029, 0.0246, -0.0434, 0.9988],
+    "Normalized_Thumb_IntermediateL": [-0.1285, 0.1943, -0.1647, 0.9584],
+    "Normalized_Thumb_DistalL": [0.1192, 0.0339, -0.0744, 0.9895],
+    "Normalized_Index_ProximalL": [0.0007, 0.0085, -0.0662, -0.9978],
+    "Normalized_Index_IntermediateL": [0, -0.0156, -0.151, -0.9884],
+    "Normalized_Index_DistalL": [0, -0.0071, -0.0701, -0.9975],
+    "Normalized_Middle_ProximalL": [-0.0038, -0.0229, -0.1365, -0.9904],
+    "Normalized_Middle_IntermediateL": [0, 0.0155, 0.1513, 0.9884],
+    "Normalized_Middle_DistalL": [0, -0.0164, -0.1599, -0.987],
+    "Normalized_Ring_ProximalL": [0.0047, 0.0315, 0.1833, 0.9826],
+    "Normalized_Ring_IntermediateL": [0, 0.0186, 0.1814, 0.9832],
+    "Normalized_Ring_DistalL": [0, 0.0159, 0.1552, 0.9877],
+    "Normalized_Little_ProximalL": [0.0031, 0.051, 0.2339, 0.9709],
+    "Normalized_Little_IntermediateL": [-0.0006, 0.0153, 0.1513, 0.9884],
+    "Normalized_Little_DistalL": [-0.0005, 0.0146, 0.1435, 0.9895],
+    "Normalized_Head": [0, 0, 0, 1]
+  };
+
+  private padIdleClip(idleClip: THREE.AnimationClip): THREE.AnimationClip {
+    // Eliminate root motion displacement (e.g. mocap stage 16.6cm offset in Hips.position)
+    const cleanTracks = idleClip.tracks.filter((t) => !t.name.includes("Hips.position"));
+    const existingTrackNames = new Set(cleanTracks.map((t) => t.name));
+    const newTracks = [...cleanTracks];
+    const duration = idleClip.duration || 10.0;
+    const times = [0, duration];
+
+    for (const [nodeName, q] of Object.entries(MotionDirector.REST_FINGER_QUATS)) {
+      const trackName = `${nodeName}.quaternion`;
+      if (!existingTrackNames.has(trackName)) {
+        if (this.vrm.scene.getObjectByName(nodeName)) {
+          const values = [...q, ...q];
+          newTracks.push(new THREE.QuaternionKeyframeTrack(trackName, times, values));
+        }
+      }
+    }
+
+    return new THREE.AnimationClip(idleClip.name, duration, newTracks);
+  }
+
   constructor(vrm: VRM, idleClip: THREE.AnimationClip | null) {
     this.vrm = vrm;
     this.mixer = new THREE.AnimationMixer(vrm.scene);
     this.cacheBones();
     this.buildFullBodyClips();
 
-    // Setup Layer 1: Base Idle (Always active at weight 1.0)
+    // Setup Layer 1: Base Idle (Always active at weight 1.0, padded to match 51 tracks)
     if (idleClip) {
-      this.idleAction = this.mixer.clipAction(idleClip);
+      const fullIdleClip = this.padIdleClip(idleClip);
+      this.idleAction = this.mixer.clipAction(fullIdleClip);
     } else {
       const fallback = this.gestureClips.get("idle");
       if (fallback) this.idleAction = this.mixer.clipAction(fallback);
@@ -109,6 +171,10 @@ export class MotionDirector {
   }
 
   dispose(): void {
+    if (this.fallbackTimer) {
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
     if (this.unsubscribeBus) {
       this.unsubscribeBus();
       this.unsubscribeBus = null;
@@ -139,8 +205,13 @@ export class MotionDirector {
       "rightLittleProximal", "rightLittleIntermediate", "rightLittleDistal"
     ];
 
+    this.restQuats.clear();
     for (const n of names) {
-      this.bones[n] = humanoid.getNormalizedBoneNode(n as any);
+      const node = humanoid.getNormalizedBoneNode(n as any);
+      this.bones[n] = node;
+      if (node) {
+        this.restQuats.set(n, node.quaternion.clone());
+      }
     }
   }
 
@@ -148,22 +219,43 @@ export class MotionDirector {
   private handleMotionEvent(event: MotionEvent): void {
     switch (event.type) {
       case "user:submit":
+        if (this.fallbackTimer) {
+          clearTimeout(this.fallbackTimer);
+          this.fallbackTimer = null;
+        }
         this.setConversationState("listening");
         break;
       case "llm:firstToken":
         this.setConversationState("speaking");
-        // Latency Fallback: immediately trigger speech gesture if idle
+        // Mandated 300ms delay timer: if intent arrives before 300ms, cancel fallback
+        if (this.fallbackTimer) {
+          clearTimeout(this.fallbackTimer);
+          this.fallbackTimer = null;
+        }
         if (this.currentGesture === "idle") {
-          this.play("explain", true);
+          this.fallbackTimer = setTimeout(() => {
+            this.fallbackTimer = null;
+            if (this.convState === "speaking" && this.currentGesture === "idle") {
+              this.play("explain", true);
+            }
+          }, 300);
         }
         break;
       case "llm:intent":
+        if (this.fallbackTimer) {
+          clearTimeout(this.fallbackTimer);
+          this.fallbackTimer = null;
+        }
         this.applyIntent(event.payload);
         break;
       case "tts:start":
         this.setSpeaking(true);
         break;
       case "tts:end":
+        if (this.fallbackTimer) {
+          clearTimeout(this.fallbackTimer);
+          this.fallbackTimer = null;
+        }
         this.setSpeaking(false);
         if (this.convState === "speaking") {
           this.setConversationState("afterglow");
@@ -214,10 +306,14 @@ export class MotionDirector {
       this.speechTimer = 0;
       this.speechIndex = 0;
       this.setConversationState("speaking");
-      if (this.currentGesture === "idle") {
+      if (this.currentGesture === "idle" && !this.fallbackTimer) {
         this.play("explain", true);
       }
     } else {
+      if (this.fallbackTimer) {
+        clearTimeout(this.fallbackTimer);
+        this.fallbackTimer = null;
+      }
       // Audio finished: transition to afterglow (1.5s countdown before idle)
       this.setConversationState("afterglow");
       this.returnToIdle(0.4);
@@ -229,34 +325,36 @@ export class MotionDirector {
    * Base Idle is ALWAYS maintained at weight 1.0 in the mixer background,
    * completely preventing any T-pose drops or momentary bind-pose flashes!
    */
-  play(name: GestureName, fromIntent: boolean = false): void {
+  play(name: GestureName, _fromIntent: boolean = false): void {
+    // Safe alias mapping: map legacy names to the 51-track Mixamo clips
+    const LEGACY_MAP: Record<string, GestureName> = {
+      thinking: "think",
+      bow: "nod",
+      curious: "think",
+      giggle: "laugh",
+      proud: "explain",
+      sing: "wave",
+      cheer: "wave",
+      peace: "wave",
+      shy: "think",
+      talk: "explain",
+    };
+    if (LEGACY_MAP[name as string]) {
+      name = LEGACY_MAP[name as string];
+    }
+
     if (this.knownGoodVrmaOnly || name === "idle") {
       this.returnToIdle(0.4);
       return;
     }
 
-    // Cooldown & Repetition Filter (Work Order: same 8.0s, global 2.5s)
+    // Strict Cooldowns: Global 2.5s, Same gesture 8.0s (strictly unchanged)
     if (this.globalCooldown > 0) {
-      // Allow turn start from idle (e.g. latency fallback) or initial intent override within 0.8s
-      const isTurnStart = fromIntent && (this.currentGesture === "idle" || (this.gestureTime < 0.8 && this.currentGesture === "explain"));
-      if (!isTurnStart) {
-        return;
-      }
+      return;
     }
     const cd = this.gestureCooldowns.get(name) ?? 0;
     if (cd > 0) {
-      if (fromIntent) {
-        // Fallback / intent alternative: pick an available conversational gesture
-        const alternatives: GestureName[] = ["nod", "think", "explain"];
-        const alt = alternatives.find((a) => (this.gestureCooldowns.get(a) ?? 0) <= 0);
-        if (alt) {
-          name = alt;
-        } else {
-          return;
-        }
-      } else {
-        return;
-      }
+      return;
     }
 
     const targetAction = this.gestureActions.get(name);
@@ -285,30 +383,24 @@ export class MotionDirector {
     this.gestureCooldowns.set(name, 8.0);
     this.globalCooldown = 2.5;
 
-    // Ensure Base Idle is always active so model never defaults to T-pose
-    if (this.idleAction) {
-      this.idleAction.setEffectiveWeight(1.0);
-      this.idleAction.play();
-    }
-
-    // BUG 2 FIX: Always call reset() to unpause clampWhenFinished actions
-    targetAction.reset();
-    targetAction.paused = false;
-    targetAction.enabled = true;
-    targetAction.setEffectiveTimeScale(1.0);
-    targetAction.setLoop(THREE.LoopOnce, 1);
-    targetAction.clampWhenFinished = true; // Rule 5: LoopOnce + clampWhenFinished = true
-
-    // BUG 1 VERIFIED: Direct local clip time assignment (NEVER action.startAt!)
+    // Strict mandated order (Correction 1):
+    targetAction.reset();                 // paused/enabled/time 복원
     targetAction.time = startOffset;
-
-    // Clean fade-in from 0 to 1
-    targetAction.setEffectiveWeight(0);
-    targetAction.fadeIn(0.3).play();
+    targetAction.clampWhenFinished = true; // Rule 5: LoopOnce + clampWhenFinished = true
+    targetAction.setLoop(THREE.LoopOnce, 1);
+    targetAction.setEffectiveWeight(1);   // weight=1 명시 복원 (stopFading 포함)
+    targetAction.play();
+    if (this.idleAction) {
+      this.idleAction.crossFadeTo(targetAction, 0.3, false);
+    }
     this.currentAction = targetAction;
   }
 
   private returnToIdle(duration: number = 0.4): void {
+    if (this.idleAction) {
+      this.idleAction.enabled = true;
+      this.idleAction.play();
+    }
     if (this.currentAction) {
       if (this.idleAction) {
         this.currentAction.crossFadeTo(this.idleAction, duration, false);
@@ -316,13 +408,10 @@ export class MotionDirector {
         this.currentAction.fadeOut(duration);
       }
       this.currentAction = null;
+    } else if (this.idleAction) {
+      this.idleAction.fadeIn(duration);
     }
     this.currentGesture = "idle";
-    if (this.idleAction) {
-      this.idleAction.setEffectiveWeight(1.0);
-      this.idleAction.fadeIn(duration);
-      this.idleAction.play();
-    }
   }
 
   /**
@@ -387,6 +476,23 @@ export class MotionDirector {
     }
 
     this.mixer.update(delta);
+    this.frameCounter++;
+    // Invariant (Rule 4): idle effective weight + gesture effective weight >= 0.99 at all frames
+    if (this.idleAction) {
+      const idleW = this.idleAction.getEffectiveWeight();
+      let gestW = 0;
+      for (const act of this.gestureActions.values()) {
+        if (act.isRunning()) {
+          gestW += act.getEffectiveWeight();
+        }
+      }
+      const sumW = idleW + gestW;
+      if (sumW < 0.99) {
+        console.warn(
+          `[WEIGHT INVARIANT VIOLATION] frame=${this.frameCounter} idle=${idleW.toFixed(3)} gest=${gestW.toFixed(3)} sum=${sumW.toFixed(3)}`
+        );
+      }
+    }
 
     // 1. Layer 2: Automatic Anticipatory Fade Return to Base Idle before gesture finishes
     if (this.currentAction && this.currentGesture !== "idle") {
@@ -423,13 +529,19 @@ export class MotionDirector {
   }
 
   /**
-   * V2 Canonical Procedural Dynamics:
-   * 1. Respiration: 0.25Hz, chest/upperChest 1.5°, spine 0.5°, shoulder phase delay
-   * 2. Head Drift: 0.08Hz smooth multi-harmonic noise, neck/head sum <= 3.0°
-   * 3. State Transition Micro-Motions: 0.3 ~ 0.6s subtle head tilt / nod / lean
-   * Recalculated afresh every frame from absolute phase; zero runaway accumulation!
+   * V2 Canonical Procedural Dynamics (Safe Rest-Relative Formula):
+   * bone.quaternion.copy(restQuat).multiply(offsetQuat)
+   *
+   * User mandated strict clamps:
+   * - Head yaw: ±8°, pitch: ±5°, roll: ±3°
+   * - Neck: exactly half of head (yaw: ±4°, pitch: ±2.5°, roll: ±1.5°)
+   * Zero cumulative multiplication. Zero runaway rotation.
    */
   private applyProceduralV2(_delta: number): void {
+    const isGestureActive = this.currentAction &&
+                            this.currentAction.isRunning() &&
+                            this.currentAction.weight > 0.05;
+
     const t = this.totalTime;
 
     // 1. Respiration (0.25Hz = 4.0s period)
@@ -438,100 +550,125 @@ export class MotionDirector {
     const breathSpine = Math.sin(respPhase) * (0.5 * Math.PI / 180);   // 0.5° on X
     const breathShoulder = Math.sin(respPhase - 0.4) * (0.35 * Math.PI / 180); // phase-delayed shoulder lift
 
-    const chest = this.bones["chest"];
-    if (chest) {
-      chest.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(breathChest * 0.7, 0, 0)));
-      chest.quaternion.normalize();
-    }
-    const upperChest = this.bones["upperChest"];
-    if (upperChest) {
-      upperChest.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(breathChest * 0.3, 0, 0)));
-      upperChest.quaternion.normalize();
-    }
-    const spine = this.bones["spine"];
-    if (spine) {
-      spine.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(breathSpine, 0, 0)));
-      spine.quaternion.normalize();
-    }
-    const leftShoulder = this.bones["leftShoulder"];
-    if (leftShoulder) {
-      leftShoulder.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, breathShoulder)));
-      leftShoulder.quaternion.normalize();
-    }
-    const rightShoulder = this.bones["rightShoulder"];
-    if (rightShoulder) {
-      rightShoulder.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -breathShoulder)));
-      rightShoulder.quaternion.normalize();
-    }
-
-    // 2. Head Drift (0.08Hz = 12.5s period)
+    // 2. Head & Neck Drift Multi-harmonics
     const driftPhase = t * 2 * Math.PI * 0.08;
-    const rawPitch = Math.sin(driftPhase * 0.9) * 0.016 + Math.cos(driftPhase * 0.4) * 0.008;
-    const rawYaw = Math.cos(driftPhase * 0.7) * 0.018 + Math.sin(driftPhase * 0.3) * 0.009;
-    const rawRoll = Math.sin(driftPhase * 0.5) * 0.008;
+    let rawHeadPitch = Math.sin(driftPhase * 0.9) * 0.016 + Math.cos(driftPhase * 0.4) * 0.008;
+    let rawHeadYaw = Math.cos(driftPhase * 0.7) * 0.018 + Math.sin(driftPhase * 0.3) * 0.009;
+    let rawHeadRoll = Math.sin(driftPhase * 0.5) * 0.008;
 
-    // Strict clamp: neck + head total <= 3° (0.0523 rad)
-    const MAX_DRIFT = 3.0 * Math.PI / 180;
-    const driftPitch = THREE.MathUtils.clamp(rawPitch, -MAX_DRIFT, MAX_DRIFT);
-    const driftYaw = THREE.MathUtils.clamp(rawYaw, -MAX_DRIFT, MAX_DRIFT);
-    const driftRoll = THREE.MathUtils.clamp(rawRoll, -MAX_DRIFT, MAX_DRIFT);
-
-    // Distribute 40% to neck, 60% to head
-    const neck = this.bones["neck"];
-    if (neck) {
-      neck.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(driftPitch * 0.4, driftYaw * 0.4, driftRoll * 0.4)));
-      neck.quaternion.normalize();
-    }
-    const head = this.bones["head"];
-    if (head) {
-      head.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(driftPitch * 0.6, driftYaw * 0.6, driftRoll * 0.6)));
-      head.quaternion.normalize();
-    }
+    let transChestPitch = 0;
+    let transSpinePitch = 0;
 
     // 3. State Transition Micro-Motions (0.3 ~ 0.6s)
     if (this.transitionMotionProgress < 1.0 && this.transitionMotionType) {
       const bell = Math.sin(this.transitionMotionProgress * Math.PI);
       switch (this.transitionMotionType) {
         case "listening": {
-          // Eye shift + micro head tilt (0.03 rad on Z)
-          if (head) {
-            head.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, bell * 0.03)));
-            head.quaternion.normalize();
-          }
+          rawHeadRoll += bell * 0.03;
           break;
         }
         case "thinking": {
-          // Gaze away + micro lean (chest 0.015 rad, neck pitch 0.025 rad)
-          if (chest) {
-            chest.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-bell * 0.015, 0, 0)));
-            chest.quaternion.normalize();
-          }
-          if (neck) {
-            neck.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(bell * 0.025, bell * 0.02, 0)));
-            neck.quaternion.normalize();
-          }
+          transChestPitch -= bell * 0.015;
+          rawHeadPitch += bell * 0.025;
+          rawHeadYaw += bell * 0.02;
           break;
         }
         case "speaking": {
-          // Light 1x nod on neck/head X (0.045 rad)
-          if (neck) {
-            neck.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(bell * 0.025, 0, 0)));
-            neck.quaternion.normalize();
-          }
-          if (head) {
-            head.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(bell * 0.02, 0, 0)));
-            head.quaternion.normalize();
-          }
+          rawHeadPitch += bell * 0.04;
           break;
         }
         case "afterglow": {
-          // Subtle shoulder relaxation
-          if (spine) {
-            spine.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(bell * 0.01, 0, 0)));
-            spine.quaternion.normalize();
-          }
+          transSpinePitch += bell * 0.01;
           break;
         }
+      }
+    }
+
+    // Strict Clamps:
+    // Head: yaw ±8° (0.1396 rad), pitch ±5° (0.0873 rad), roll ±3° (0.0524 rad)
+    const DEG2RAD = Math.PI / 180;
+    const clampedHeadYaw = THREE.MathUtils.clamp(rawHeadYaw, -8 * DEG2RAD, 8 * DEG2RAD);
+    const clampedHeadPitch = THREE.MathUtils.clamp(rawHeadPitch, -5 * DEG2RAD, 5 * DEG2RAD);
+    const clampedHeadRoll = THREE.MathUtils.clamp(rawHeadRoll, -3 * DEG2RAD, 3 * DEG2RAD);
+
+    // Neck: exactly half of head (yaw ±4°, pitch ±2.5°, roll ±1.5°)
+    const clampedNeckYaw = THREE.MathUtils.clamp(clampedHeadYaw * 0.5, -4 * DEG2RAD, 4 * DEG2RAD);
+    const clampedNeckPitch = THREE.MathUtils.clamp(clampedHeadPitch * 0.5, -2.5 * DEG2RAD, 2.5 * DEG2RAD);
+    const clampedNeckRoll = THREE.MathUtils.clamp(clampedHeadRoll * 0.5, -1.5 * DEG2RAD, 1.5 * DEG2RAD);
+
+    // Apply strictly in bone.quaternion.copy(restQuat).multiply(offsetQuat) pattern!
+    // Head
+    const head = this.bones["head"];
+    const headRest = this.restQuats.get("head");
+    if (head && headRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(clampedHeadPitch, clampedHeadYaw, clampedHeadRoll);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        head.quaternion.copy(headRest).multiply(_scratchQuat);
+      }
+    }
+
+    // Neck
+    const neck = this.bones["neck"];
+    const neckRest = this.restQuats.get("neck");
+    if (neck && neckRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(clampedNeckPitch, clampedNeckYaw, clampedNeckRoll);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        neck.quaternion.copy(neckRest).multiply(_scratchQuat);
+      }
+    }
+
+    // Chest
+    const chest = this.bones["chest"];
+    const chestRest = this.restQuats.get("chest");
+    if (chest && chestRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(breathChest * 0.7 + transChestPitch, 0, 0);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        chest.quaternion.copy(chestRest).multiply(_scratchQuat);
+      }
+    }
+
+    // UpperChest
+    const upperChest = this.bones["upperChest"];
+    const upperChestRest = this.restQuats.get("upperChest");
+    if (upperChest && upperChestRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(breathChest * 0.3, 0, 0);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        upperChest.quaternion.copy(upperChestRest).multiply(_scratchQuat);
+      }
+    }
+
+    // Spine
+    const spine = this.bones["spine"];
+    const spineRest = this.restQuats.get("spine");
+    if (spine && spineRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(breathSpine + transSpinePitch, 0, 0);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        spine.quaternion.copy(spineRest).multiply(_scratchQuat);
+      }
+    }
+
+    // Shoulders
+    const leftShoulder = this.bones["leftShoulder"];
+    const leftShoulderRest = this.restQuats.get("leftShoulder");
+    if (leftShoulder && leftShoulderRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(0, 0, breathShoulder);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        leftShoulder.quaternion.copy(leftShoulderRest).multiply(_scratchQuat);
+      }
+    }
+    const rightShoulder = this.bones["rightShoulder"];
+    const rightShoulderRest = this.restQuats.get("rightShoulder");
+    if (rightShoulder && rightShoulderRest) {
+      if (!isGestureActive) {
+        _scratchEuler.set(0, 0, -breathShoulder);
+        _scratchQuat.setFromEuler(_scratchEuler);
+        rightShoulder.quaternion.copy(rightShoulderRest).multiply(_scratchQuat);
       }
     }
   }
