@@ -4,16 +4,25 @@ import type { GestureName } from "../shared/types";
 import { MOTION_CONFIG } from "./motionConfig";
 import { motionEventBus, type MotionEvent, type MotionIntentData } from "./motionEventBus";
 import { loadMixamoAnimation } from "./loadMixamoAnimation";
+import {
+  VRMAnimationLoaderPlugin,
+  createVRMAnimationClip,
+} from "@pixiv/three-vrm-animation";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export type ConvState = "idle" | "listening" | "thinking" | "speaking" | "afterglow";
 
-const GESTURE_MAX_DURATION = 2.2; // Rule 5: 2.2s conversational gesture length limit
+const GESTURE_MAX_DURATION = 5.0; // Conversational gesture length limit (VRMA native)
 const GESTURE_START_OFFSETS: Record<string, number> = {
   nod: 0.15,     // 0.15s dead pause skip -> immediate 1x nod
-  wave: 1.10,    // 1.10s rest pause skip -> immediate right hand wave elevation
-  explain: 0.40, // 0.40s rest pause skip -> immediate forward hand gesturing
-  laugh: 0.80,   // 0.80s rest pause skip -> immediate chuckling & head dip
-  think: 0.30,   // 0.30s rest pause skip -> immediate hand to chin rise
+  wave: 0.0,     // Native VRMA Greeting starting from natural posture
+  bow: 0.0,      // Native VRMA Greeting / Bow
+  explain: 0.0,  // Native VRMA Show full body
+  laugh: 0.0,    // Native VRMA Peace sign
+  think: 0.30,   // Hand to chin rise
+  peace: 0.0,    // Native VRMA Peace sign
+  proud: 0.0,    // Native VRMA Model pose
+  cheer: 0.0,    // Native VRMA Show full body
 };
 
 const _scratchEuler = new THREE.Euler();
@@ -415,21 +424,46 @@ export class MotionDirector {
   }
 
   /**
-   * Asynchronously load and retarget the 5 Mixamo FBX gesture clips at runtime
-   * Enforces hips.position removal, VRM 0.0 sign inversion, and clip caching.
+   * Asynchronously load gesture clips (Official VRMA priority, with Mixamo FBX fallback)
+   * Automatically extracts and retargets humanoid tracks via createVRMAnimationClip.
    */
-  async loadGestureClips(_loader?: any): Promise<void> {
+  async loadGestureClips(loader?: any): Promise<void> {
+    if (!loader) {
+      loader = new GLTFLoader();
+      loader.register((parser: any) => new VRMAnimationLoaderPlugin(parser));
+    }
+
     const list: { name: GestureName; file: string }[] = [
-      { name: "nod", file: "./vrma/mixamo/nod.fbx" },
-      { name: "wave", file: "./vrma/mixamo/wave.fbx" },
-      { name: "explain", file: "./vrma/mixamo/explain.fbx" },
-      { name: "laugh", file: "./vrma/mixamo/laugh.fbx" },
-      { name: "think", file: "./vrma/mixamo/think.fbx" },
+      { name: "wave", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },     // Official VRoid Greeting
+      { name: "bow", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },      // Official VRoid Greeting / Bow
+      { name: "peace", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace sign
+      { name: "laugh", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace / Happy
+      { name: "explain", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },  // Official VRoid Show full body
+      { name: "cheer", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },    // Official VRoid Show full body
+      { name: "proud", file: "./VRMA_MotionPack/vrma/VRMA_06.vrma" },    // Official VRoid Model pose
+      { name: "think", file: "./vrma/mixamo/think.fbx" },                // Mixamo Thinking pose
+      { name: "nod", file: "./vrma/mixamo/nod.fbx" },                    // Mixamo subtle quick nod
     ];
 
     for (const item of list) {
       try {
-        const cleanClip = await loadMixamoAnimation(item.file, this.vrm, item.name);
+        let cleanClip: THREE.AnimationClip;
+        if (item.file.endsWith(".vrma")) {
+          const gltf = await loader.loadAsync(item.file);
+          const vrmAnimations = gltf.userData.vrmAnimations ?? [gltf.userData.vrmAnimation];
+          if (!vrmAnimations || vrmAnimations.length === 0 || !vrmAnimations[0]) {
+            throw new Error(`No VRMAnimation data found in ${item.file}`);
+          }
+          const rawClip = createVRMAnimationClip(vrmAnimations[0], this.vrm);
+          // Filter out Hips.position to maintain fixed camera framing and avoid root motion stage walk-offs
+          const cleanTracks = rawClip.tracks.filter(
+            (t) => !t.name.includes("Hips.position") && !t.name.includes("hips.position")
+          );
+          cleanClip = new THREE.AnimationClip(item.name, rawClip.duration, cleanTracks);
+        } else {
+          cleanClip = await loadMixamoAnimation(item.file, this.vrm, item.name);
+        }
+
         this.gestureClips.set(item.name, cleanClip);
 
         const act = this.mixer.clipAction(cleanClip);
@@ -437,10 +471,10 @@ export class MotionDirector {
         act.clampWhenFinished = true; // Rule 5: clampWhenFinished = true
         this.gestureActions.set(item.name, act);
         console.log(
-          `[MotionDirector] Registered retargeted Mixamo gesture for '${item.name}': duration ${cleanClip.duration.toFixed(2)}s, tracks: ${cleanClip.tracks.length}`
+          `[MotionDirector] Registered gesture '${item.name}' (${item.file.endsWith(".vrma") ? "Native VRMA" : "Mixamo FBX"}): duration ${cleanClip.duration.toFixed(2)}s, tracks: ${cleanClip.tracks.length}`
         );
       } catch (err) {
-        console.warn(`[MotionDirector] Failed to retarget Mixamo ${item.name}:`, err);
+        console.warn(`[MotionDirector] Failed to load gesture ${item.name}:`, err);
       }
     }
   }
