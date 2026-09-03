@@ -1,0 +1,228 @@
+import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Ipc } from "../src/shared/ipc";
+import { MIKU_SYSTEM_PROMPT } from "../src/shared/persona";
+import { defaultSettings, type AppSettings, type AppState, type ChatMessage, type EmotionName } from "../src/shared/types";
+import { completeChat, LlmError } from "./llm";
+import { loadSettings, saveSettings } from "./settings";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+let characterWin: BrowserWindow | null = null;
+let overlayWin: BrowserWindow | null = null;
+let settings: AppSettings = { ...defaultSettings };
+let history: ChatMessage[] = [];
+let busy = false;
+
+const state: AppState = {
+  speaking: false,
+  pttHeld: false,
+  chatCollapsed: false,
+  settings,
+  emotion: "neutral",
+  lastError: null,
+};
+
+function preloadPath(): string {
+  const mjs = path.join(here, "preload.mjs"); const js = path.join(here, "preload.js"); return fs.existsSync(mjs) ? mjs : js;
+}
+
+function broadcast(channel: string, ...args: unknown[]): void {
+  for (const win of [characterWin, overlayWin]) {
+    if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
+  }
+}
+
+function pushState(): void {
+  state.settings = settings;
+  broadcast(Ipc.STATE_SYNC, state);
+}
+
+function parseEmotion(text: string): { emotion: EmotionName; body: string } {
+  const m = text.match(/^\\s*\\[\\[emotion:(neutral|happy|angry|sad|surprised|relaxed)\\]\\]\\s*/i);
+  if (!m) return { emotion: "neutral", body: text.trim() };
+  return { emotion: m[1].toLowerCase() as EmotionName, body: text.slice(m[0].length).trim() };
+}
+
+function createCharacterWindow(): BrowserWindow {
+  const wa = screen.getPrimaryDisplay().workArea;
+  const width = 460;
+  const height = Math.min(840, wa.height - 24);
+  const win = new BrowserWindow({
+    width,
+    height,
+    x: wa.x + wa.width - width - 400,
+    y: wa.y + wa.height - height,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    resizable: true,
+    skipTaskbar: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: preloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.setIgnoreMouseEvents(true, { forward: true });
+  loadRenderer(win, "index.html");
+  return win;
+}
+
+function createOverlayWindow(): BrowserWindow {
+  const wa = screen.getPrimaryDisplay().workArea;
+  const width = 380;
+  const height = 640;
+  const win = new BrowserWindow({
+    width,
+    height,
+    x: wa.x + wa.width - width - 16,
+    y: wa.y + wa.height - height - 16,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    resizable: true,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: preloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+  win.setAlwaysOnTop(true, "screen-saver");
+  loadRenderer(win, "overlay.html");
+  return win;
+}
+
+function loadRenderer(win: BrowserWindow, file: string): void {
+  const dev = process.env.VITE_DEV_SERVER_URL;
+  if (dev) {
+    const url = file === "index.html" ? dev : new URL(file, dev).toString();
+    void win.loadURL(url);
+  } else {
+    void win.loadFile(path.join(here, "../dist", file));
+  }
+}
+
+function bindIpc(): void {
+  ipcMain.handle(Ipc.SETTINGS_GET, () => settings);
+  ipcMain.handle(Ipc.SETTINGS_SET, (_e, patch: Partial<AppSettings>) => {
+    settings = { ...settings, ...patch };
+    saveSettings(settings);
+    registerPttShortcut();
+    pushState();
+    return settings;
+  });
+  ipcMain.on(Ipc.SET_CLICK_THROUGH, (e, ignore: boolean) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(!!ignore, { forward: true });
+  });
+  ipcMain.on(Ipc.OVERLAY_COLLAPSE, (_e, collapsed: boolean) => {
+    state.chatCollapsed = !!collapsed;
+    if (overlayWin && !overlayWin.isDestroyed()) {
+      overlayWin.setSize(380, collapsed ? 64 : 640);
+    }
+    pushState();
+  });
+  ipcMain.on(Ipc.PTT_START, () => {
+    state.pttHeld = true;
+    broadcast(Ipc.PTT_KEY_STATE, true);
+    pushState();
+  });
+  ipcMain.on(Ipc.PTT_STOP, () => {
+    state.pttHeld = false;
+    broadcast(Ipc.PTT_KEY_STATE, false);
+    pushState();
+  });
+  ipcMain.on(Ipc.STT_PARTIAL, (_e, text: string) => broadcast(Ipc.STT_PARTIAL, text));
+  ipcMain.on(Ipc.STT_FINAL, (_e, text: string) => {
+    broadcast(Ipc.STT_FINAL, text);
+    if (typeof text === "string" && text.trim()) void handleChat(text.trim());
+  });
+  ipcMain.on(Ipc.CHAT_SEND, (_e, text: string) => {
+    if (typeof text === "string" && text.trim()) void handleChat(text.trim());
+  });
+  ipcMain.on(Ipc.READY, () => pushState());
+  ipcMain.on(Ipc.SPEAKING, (_e, speaking: boolean) => {
+    state.speaking = !!speaking;
+    broadcast(Ipc.SPEAKING, state.speaking);
+  });
+}
+
+async function handleChat(userText: string): Promise<void> {
+  if (busy) return;
+  busy = true;
+  state.lastError = null;
+  pushState();
+  history.push({ role: "user", content: userText });
+  if (history.length > 24) history = history.slice(-24);
+  const messages: ChatMessage[] = [{ role: "system", content: MIKU_SYSTEM_PROMPT }, ...history];
+  let acc = "";
+  try {
+    acc = await completeChat({
+      provider: settings.provider,
+      model: settings.model,
+      ollamaUrl: settings.ollamaUrl,
+      easyProxyUrl: settings.easyProxyUrl,
+      messages,
+      onDelta: (chunk) => {
+        acc += "";
+        broadcast(Ipc.CHAT_DELTA, chunk);
+      },
+    });
+    const parsed = parseEmotion(acc);
+    history.push({ role: "assistant", content: parsed.body });
+    state.emotion = parsed.emotion;
+    broadcast(Ipc.EMOTION, parsed.emotion);
+    broadcast(Ipc.CHAT_DONE, parsed.body);
+    broadcast(Ipc.TRANSCRIPT, parsed.body);
+    broadcast(Ipc.GESTURE, "talk");
+  } catch (err) {
+    const msg = err instanceof LlmError ? err.message : String(err);
+    state.lastError = msg;
+    history.pop();
+    broadcast(Ipc.CHAT_ERROR, msg);
+  } finally {
+    busy = false;
+    pushState();
+  }
+}
+
+function pttAccelerator(): string | null {
+  const key = (settings.pttKey || "Space").trim();
+  if (key.toLowerCase() === "space") return null;
+  return key;
+}
+
+function registerPttShortcut(): void {
+  globalShortcut.unregisterAll();
+  const acc = pttAccelerator();
+  if (!acc) return;
+  const ok = globalShortcut.register(acc, () => {
+    broadcast(Ipc.PTT_KEY_STATE, true);
+  });
+  if (!ok) {
+    state.lastError = "PTT global shortcut failed: " + acc;
+    pushState();
+  }
+}
+
+app.whenReady().then(() => {
+  settings = loadSettings();
+  state.settings = settings;
+  bindIpc();
+  characterWin = createCharacterWindow();
+  overlayWin = createOverlayWindow();
+  registerPttShortcut();
+});
+
+app.on("window-all-closed", () => app.quit());
+app.on("will-quit", () => globalShortcut.unregisterAll());

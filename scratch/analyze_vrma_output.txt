@@ -1,0 +1,14 @@
+﻿
+electron.exe : (node:19176) UnhandledPromiseRejectionWarning: Error: Cannot read properties of undefined (reading 'load
+Async')
+위치 줄:1 문자:1
++ & "C:\TEST\MikuChat-v3\node_modules\electron\dist\electron.exe" "C:\T ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:19176) Un...ng 'loadAsync'):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `electron --trace-warnings ...` to show where the warning was created)
+(node:19176) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing in
+side of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To term
+inate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://no
+dejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)

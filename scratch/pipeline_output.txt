@@ -1,0 +1,30 @@
+﻿
+=== 1. 3 CONSECUTIVE ROUNDS VIA ACTUAL EVENT BUS ===
+{"gesture":"wave","round":1,"startTime":1.1,"handDeltaY":0,"headDeltaRotX":0.823,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"wave","round":2,"startTime":1.1,"handDeltaY":0,"headDeltaRotX":0.689,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"wave","round":3,"startTime":1.1,"handDeltaY":0.002,"headDeltaRotX":0.76,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"nod","round":1,"startTime":0.15,"handDeltaY":0,"headDeltaRotX":0.32,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"nod","round":2,"startTime":0.15,"handDeltaY":0,"headDeltaRotX":0.008,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"nod","round":3,"startTime":0.15,"handDeltaY":0.001,"headDeltaRotX":0.361,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"think","round":1,"startTime":0.3,"handDeltaY":0.039,"headDeltaRotX":0.852,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"think","round":2,"startTime":0.3,"handDeltaY":0,"headDeltaRotX":0.426,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"think","round":3,"startTime":0.3,"handDeltaY":0,"headDeltaRotX":0.717,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"explain","round":1,"startTime":0.4,"handDeltaY":0.014,"headDeltaRotX":0.032,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"explain","round":2,"startTime":0.4,"handDeltaY":0,"headDeltaRotX":0.498,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"explain","round":3,"startTime":0.4,"handDeltaY":0,"headDeltaRotX":0.421,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"laugh","round":1,"startTime":0.8,"handDeltaY":0.001,"headDeltaRotX":0.101,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"laugh","round":2,"startTime":0.8,"handDeltaY":0.002,"headDeltaRotX":0.221,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+{"gesture":"laugh","round":3,"startTime":0.8,"handDeltaY":0.001,"headDeltaRotX":0.538,"tPoseJump":"?놁쓬","normalPlayback":"?뺤긽"}
+
+=== 2. 60+ SECONDS ACCUMULATED MIXER TIME TEST (BUG 1 PROOF) ===
+60s Accumulated Mixer Time Test Result:
+{
+  "accumulatedMixerTime": 128.01,
+  "actionStartTime": 1.1,
+  "expectedStartTime": 1.1,
+  "jumpedToEndImmediately": false,
+  "isPausedAtStart": false,
+  "isEnabledAtStart": true,
+  "handDeltaY": 0,
+  "normalPlaybackAfter60s": "?뺤긽"
+}

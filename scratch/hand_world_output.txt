@@ -1,0 +1,5 @@
+﻿
+Wave Round 1: {"round":1,"startTime":1.1,"isPaused":false,"yStart":0.858,"yPeak":0.858,"deltaY":0,"normalPlayback":false}
+Wave Round 2: {"round":2,"startTime":1.1,"isPaused":false,"yStart":0.858,"yPeak":0.857,"deltaY":0.001,"normalPlayback":false}
+Wave Round 3: {"round":3,"startTime":1.1,"isPaused":false,"yStart":0.857,"yPeak":0.858,"deltaY":0.001,"normalPlayback":false}
+60s Mixer Time Wave Test: {"accumulatedMixerTime":83.43,"startTime":1.1,"isPaused":false,"deltaY":0.001,"normalPlaybackAfter60s":false}

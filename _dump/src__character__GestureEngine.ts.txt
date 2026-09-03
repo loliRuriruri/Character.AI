@@ -1,0 +1,143 @@
+import * as THREE from "three";
+import type { VRM } from "@pixiv/three-vrm";
+
+export type GestureName = "idle" | "wave" | "nod" | "talk";
+
+/** Procedural clips on arms/spine only — never keys head/neck (LookAt owns those). */
+export class GestureEngine {
+  readonly mixer: THREE.AnimationMixer;
+  private readonly clips = new Map<GestureName, THREE.AnimationClip>();
+  private idleAction: THREE.AnimationAction | null = null;
+
+  constructor(private readonly vrm: VRM) {
+    this.mixer = new THREE.AnimationMixer(vrm.scene);
+    this.buildClips();
+    this.play("idle");
+  }
+
+  update(delta: number): void {
+    this.mixer.update(delta);
+  }
+
+  play(name: GestureName): void {
+    const clip = this.clips.get(name);
+    if (!clip) return;
+    const action = this.mixer.clipAction(clip);
+    action.reset();
+    if (name === "idle") {
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.fadeIn(0.4).play();
+      this.idleAction = action;
+      return;
+    }
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    if (this.idleAction) this.idleAction.fadeOut(0.15);
+    action.fadeIn(0.12).play();
+    const onDone = () => {
+      this.mixer.removeEventListener("finished", onDone);
+      if (this.idleAction) this.idleAction.reset().fadeIn(0.3).play();
+    };
+    this.mixer.addEventListener("finished", onDone);
+  }
+
+  private bone(name: "leftUpperArm" | "rightUpperArm" | "leftLowerArm" | "rightLowerArm" | "spine" | "chest" | "hips") {
+    return this.vrm.humanoid.getNormalizedBoneNode(name);
+  }
+
+  private buildClips(): void {
+    this.clips.set("idle", this.idleClip());
+    this.clips.set("wave", this.waveClip());
+    this.clips.set("nod", this.nodClip());
+    this.clips.set("talk", this.talkClip());
+  }
+
+  private quatTrack(node: THREE.Object3D, times: number[], eulers: THREE.Euler[]): THREE.QuaternionKeyframeTrack {
+    const values: number[] = [];
+    const q = new THREE.Quaternion();
+    const base = node.quaternion.clone();
+    for (const e of eulers) {
+      q.setFromEuler(e);
+      const out = base.clone().multiply(q);
+      values.push(out.x, out.y, out.z, out.w);
+    }
+    return new THREE.QuaternionKeyframeTrack(node.name + ".quaternion", times, values);
+  }
+
+  private idleClip(): THREE.AnimationClip {
+    const tracks: THREE.KeyframeTrack[] = [];
+    const hips = this.bone("hips");
+    const spine = this.bone("spine");
+    const times = [0, 1.2, 2.4, 3.6];
+    if (hips) {
+      tracks.push(this.quatTrack(hips, times, [
+        new THREE.Euler(0, 0, 0),
+        new THREE.Euler(0.02, 0.04, 0),
+        new THREE.Euler(0, -0.04, 0),
+        new THREE.Euler(0, 0, 0),
+      ]));
+    }
+    if (spine) {
+      tracks.push(this.quatTrack(spine, times, [
+        new THREE.Euler(0, 0, 0),
+        new THREE.Euler(0.03, 0, 0.02),
+        new THREE.Euler(-0.02, 0, -0.02),
+        new THREE.Euler(0, 0, 0),
+      ]));
+    }
+    return new THREE.AnimationClip("mc-idle", 3.6, tracks);
+  }
+
+  private waveClip(): THREE.AnimationClip {
+    const tracks: THREE.KeyframeTrack[] = [];
+    const upper = this.bone("leftUpperArm");
+    const lower = this.bone("leftLowerArm");
+    const times = [0, 0.25, 0.5, 0.75, 1.1];
+    if (upper) {
+      tracks.push(this.quatTrack(upper, times, [
+        new THREE.Euler(0, 0, 0),
+        new THREE.Euler(0, 0, 1.2),
+        new THREE.Euler(0, 0, 0.7),
+        new THREE.Euler(0, 0, 1.2),
+        new THREE.Euler(0, 0, 0),
+      ]));
+    }
+    if (lower) {
+      tracks.push(this.quatTrack(lower, times, [
+        new THREE.Euler(0, 0, 0),
+        new THREE.Euler(0, -0.4, 0),
+        new THREE.Euler(0, 0.2, 0),
+        new THREE.Euler(0, -0.4, 0),
+        new THREE.Euler(0, 0, 0),
+      ]));
+    }
+    return new THREE.AnimationClip("mc-wave", 1.1, tracks);
+  }
+
+  private nodClip(): THREE.AnimationClip {
+    const chest = this.bone("chest");
+    if (!chest) return new THREE.AnimationClip("mc-nod", 0.6, []);
+    const times = [0, 0.18, 0.36, 0.6];
+    const track = this.quatTrack(chest, times, [
+      new THREE.Euler(0, 0, 0),
+      new THREE.Euler(0.22, 0, 0),
+      new THREE.Euler(-0.06, 0, 0),
+      new THREE.Euler(0, 0, 0),
+    ]);
+    return new THREE.AnimationClip("mc-nod", 0.6, [track]);
+  }
+
+  private talkClip(): THREE.AnimationClip {
+    const spine = this.bone("spine");
+    if (!spine) return new THREE.AnimationClip("mc-talk", 1.2, []);
+    const times = [0, 0.3, 0.6, 0.9, 1.2];
+    const track = this.quatTrack(spine, times, [
+      new THREE.Euler(0, 0, 0),
+      new THREE.Euler(0.05, 0.03, 0),
+      new THREE.Euler(0.02, -0.03, 0),
+      new THREE.Euler(0.06, 0.01, 0),
+      new THREE.Euler(0, 0, 0),
+    ]);
+    return new THREE.AnimationClip("mc-talk", 1.2, [track]);
+  }
+}

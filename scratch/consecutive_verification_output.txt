@@ -1,0 +1,46 @@
+﻿
+
+=======================================================
+TEST A: CONSECUTIVE 3-ROUND TRIGGERING VIA MOTION EVENT BUS
+=======================================================
+
+--- Testing Gesture: wave (3 Consecutive Rounds) ---
+Round 1: {"round":1,"startTime":1.1,"isPaused":false,"isEnabled":true,"handDeltaY":0,"headDeltaX":0.473,"tPoseJump":false,"normalPlayback":true}
+Round 2: {"round":2,"startTime":1.1,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.47,"tPoseJump":false,"normalPlayback":true}
+Round 3: {"round":3,"startTime":1.1,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.31,"tPoseJump":false,"normalPlayback":true}
+
+--- Testing Gesture: nod (3 Consecutive Rounds) ---
+Round 1: {"round":1,"startTime":0.15,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.151,"tPoseJump":false,"normalPlayback":true}
+Round 2: {"round":2,"startTime":0.15,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.072,"tPoseJump":false,"normalPlayback":true}
+Round 3: {"round":3,"startTime":0.15,"isPaused":false,"isEnabled":true,"handDeltaY":0,"headDeltaX":0.38,"tPoseJump":false,"normalPlayback":true}
+
+--- Testing Gesture: think (3 Consecutive Rounds) ---
+Round 1: {"round":1,"startTime":0.3,"isPaused":false,"isEnabled":true,"handDeltaY":0.003,"headDeltaX":0.573,"tPoseJump":false,"normalPlayback":true}
+Round 2: {"round":2,"startTime":0.3,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":1.407,"tPoseJump":false,"normalPlayback":true}
+Round 3: {"round":3,"startTime":0.3,"isPaused":false,"isEnabled":true,"handDeltaY":0,"headDeltaX":0.419,"tPoseJump":false,"normalPlayback":true}
+
+--- Testing Gesture: explain (3 Consecutive Rounds) ---
+Round 1: {"round":1,"startTime":0.4,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.135,"tPoseJump":false,"normalPlayback":true}
+Round 2: {"round":2,"startTime":0.4,"isPaused":false,"isEnabled":true,"handDeltaY":0.029,"headDeltaX":0.427,"tPoseJump":false,"normalPlayback":true}
+Round 3: {"round":3,"startTime":0.4,"isPaused":false,"isEnabled":true,"handDeltaY":0,"headDeltaX":0.047,"tPoseJump":false,"normalPlayback":false}
+
+--- Testing Gesture: laugh (3 Consecutive Rounds) ---
+Round 1: {"round":1,"startTime":0.8,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.193,"tPoseJump":false,"normalPlayback":true}
+Round 2: {"round":2,"startTime":0.8,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.066,"tPoseJump":false,"normalPlayback":true}
+Round 3: {"round":3,"startTime":0.8,"isPaused":false,"isEnabled":true,"handDeltaY":0.001,"headDeltaX":0.147,"tPoseJump":false,"normalPlayback":true}
+
+=======================================================
+TEST B: 60+ SECONDS ACCUMULATED MIXER TIME TEST (BUG 1 VERIFICATION)
+=======================================================
+60s Mixer Time Accumulation Result:
+{
+  "accumulatedMixerTime": 119.88,
+  "timeDifferenceFromBefore": 75,
+  "gestureStartTime": 1.1,
+  "expectedStartTime": 1.1,
+  "jumpedToEndImmediately": false,
+  "isPausedAtStart": false,
+  "isEnabledAtStart": true,
+  "handDeltaY": 0,
+  "normalPlaybackAfter60s": false
+}

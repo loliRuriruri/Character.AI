@@ -1,0 +1,60 @@
+﻿
+electron.exe : [30948:0903/215217.747:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+위치 줄:1 문자:1
++ & "C:\TEST\MikuChat-v3\node_modules\electron\dist\electron.exe" "C:\T ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([30948:0903/215...??섏뿀?듬땲?? (0x5):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[30948:0903/215217.747:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+[30948:0903/215217.747:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+[30948:0903/215217.750:ERROR:disk_cache.cc(208)] Unable to create cache
+[30948:0903/215217.750:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+[30948:0903/215217.750:ERROR:disk_cache.cc(208)] Unable to create cache
+[30948:0903/215217.750:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+[30948:0903/215217.750:ERROR:disk_cache.cc(208)] Unable to create cache
+[30948:0903/215217.750:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+==================================================
+STARTING MASTER QA SUITE EXECUTION
+==================================================
+
+>>> RUNNING SCENARIO A (10 Consecutive Conversation Turns)...
+Scenario A Result: FAIL All 10 turns completed!
+
+>>> RUNNING SCENARIO B (Short word vs 300+ characters)...
+Scenario B Result: PASS {"shortState":"idle","longState":"idle","midGesture":"idle","lateGesture":"idle","pass":true}
+
+>>> RUNNING SCENARIO C (3 Message Interrupts)...
+Scenario C Result: PASS Final State: idle
+
+>>> RUNNING SCENARIO D (Fallback Latency Measurement)...
+Scenario D Result: FAIL {"delayMs":0.1,"fallbackGesture":"idle","state":"speaking","pass":false}
+
+>>> RUNNING SCENARIO E (15 Gesture Executions)...
+Scenario E Result: PASS {"pass":true,"totalRuns":15,"allHipsConstant":true,"zeroTPose":true}
+
+>>> RUNNING SCENARIO F (21 Korean Vowels Mapping Check)...
+Scenario F Result: PASS Missed: ?놁쓬
+
+>>> RUNNING SCENARIO G (Simultaneous Emotion + Viseme Weight Cap)...
+Scenario G Result: PASS {"pass":true,"measurements":[{"emotion":"happy","emoW":0.12798423325623598,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"relaxed","emoW":0.1279653762453633,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"angry","emoW":0.1280029333909413,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"sad","emoW":0.13097280769202527,"aaW":0.4,"sum":0.531,"cappedAt0_6":true}]}
+
+>>> RUNNING SCENARIO H (5-Minute Idle Drift Test)...
+Scenario H Result: PASS {"qChest_0s":["-0.0307","0.0033","-0.0033","0.9995"],"qChest_300s":["-0.0216","0.0029","-0.0040","0.9998"],"qHead_0s":["-0.5118","-0.0731","0.8314","0.2034"],"qHead_300s":["-0.5163","-0.0762","0.8289","0.2013"],"angularDifferenceChestDeg":1.045,"angularDifferenceHeadDeg":0.73,"pass":true}
+
+>>> RUNNING SCENARIO I (Background 5-Min Resume Delta Clamp)...
+Scenario I Result: PASS {"rawDeltaSeconds":300,"clampedDtSeconds":0.05,"pass":true}
+
+>>> RUNNING SCENARIO J (Model Swap & DeepDispose & Cache Invalidation)...
+Scenario J Result: PASS {"initialId":"b7160092-b838-4274-8829-f56268578ea2","swappedId":"1fa4cb9e-2632-4b0c-869f-dc51147131d7","restoredId":"2807fd02-3dba-4e4a-b16b-0af15247e412","isNewInstance":true,"cacheInvalidatedPerModel":true,"heapBeforeMb":45.47,"heapAfterMb":166.81,"pass":true}
+
+>>> RUNNING SCENARIO K (Expression & LookAt Filtering Stats)...
+Scenario K Result: PASS {"pass":true,"stats":[{"gesture":"nod","rawTracks":53,"filteredTracks":51,"removedCount":2,"lookAtRemaining":0,"expressionRemaining":0,"hipsPositionRemaining":0},{"gesture":"wave","rawTracks":53,"filteredTracks":51,"removedCount":2,"lookAtRemaining":0,"expressionRemaining":0,"hipsPositionRemaining":0},{"gesture":"explain","rawTracks":53,"filteredTracks":51,"removedCount":2,"lookAtRemaining":0,"expressionRemaining":0,"hipsPositionRemaining":0},{"gesture":"laugh","rawTracks":53,"filteredTracks":51,"removedCount":2,"lookAtRemaining":0,"expressionRemaining":0,"hipsPositionRemaining":0},{"gesture":"think","rawTracks":53,"filteredTracks":51,"removedCount":2,"lookAtRemaining":0,"expressionRemaining":0,"hipsPositionRemaining":0}]}
+
+>>> RUNNING SCENARIO L (10 Rapid Intents at 0.3s Interval)...
+Scenario L Result: PASS {"intentsSent":10,"intervalMs":300,"playedCount":1,"pass":true}
+
+>>> MEASURING PERFORMANCE BENCHMARKS...
+Performance Benchmarks: {"avgFps":60.1,"minFps":56.8,"updatesPerFrame":3,"heapMb":44.33}
+
+>>> ALL TESTS COMPLETE AND SAVED TO scratch/master_qa_final.json!

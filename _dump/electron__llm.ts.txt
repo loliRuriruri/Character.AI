@@ -1,0 +1,150 @@
+import type { ChatMessage } from "../src/shared/types";
+
+export class LlmError extends Error {
+  readonly status: number | null;
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "LlmError";
+    this.status = status;
+  }
+}
+
+export async function completeChat(opts: {
+  provider: "ollama" | "easyproxy";
+  model: string;
+  ollamaUrl: string;
+  easyProxyUrl: string;
+  messages: ChatMessage[];
+  onDelta: (chunk: string) => void;
+}): Promise<string> {
+  if (opts.provider === "easyproxy") {
+    return completeEasyProxy(opts);
+  }
+  return completeOllama(opts);
+}
+
+async function completeOllama(opts: {
+  model: string;
+  ollamaUrl: string;
+  messages: ChatMessage[];
+  onDelta: (chunk: string) => void;
+}): Promise<string> {
+  const base = opts.ollamaUrl.replace(/\/$/, "");
+  const url = base + "/api/chat";
+  const streamed = await ollamaRequest(url, {
+    model: opts.model,
+    messages: opts.messages,
+    stream: true,
+    think: false,
+  }, opts.onDelta);
+  if (streamed.trim().length > 0) return streamed;
+  const retried = await ollamaRequest(url, {
+    model: opts.model,
+    messages: opts.messages,
+    stream: false,
+    think: false,
+  }, opts.onDelta);
+  if (retried.trim().length > 0) return retried;
+  throw new LlmError("Ollama returned empty content after stream and stream:false retry (think:false). Is gemma4:12b pulled?");
+}
+
+async function ollamaRequest(
+  url: string,
+  body: Record<string, unknown>,
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new LlmError("Ollama unreachable at " + url + " — " + String(err));
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new LlmError("Ollama HTTP " + res.status + " " + t.slice(0, 400), res.status);
+  }
+  if (body.stream === true) return readOllamaNdjson(res, onDelta);
+  const json = (await res.json()) as { message?: { content?: string }; response?: string };
+  const text = (json.message?.content ?? json.response ?? "").toString();
+  if (text) onDelta(text);
+  return text;
+}
+
+async function readOllamaNdjson(res: Response, onDelta: (chunk: string) => void): Promise<string> {
+  if (!res.body) throw new LlmError("Ollama stream had no body");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let acc = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let parsed: { message?: { content?: string }; response?: string; done?: boolean };
+      try { parsed = JSON.parse(trimmed); } catch { continue; }
+      const piece = (parsed.message?.content ?? parsed.response ?? "").toString();
+      if (piece.length > 0) { acc += piece; onDelta(piece); }
+    }
+  }
+  return acc;
+}
+
+async function completeEasyProxy(opts: {
+  model: string;
+  easyProxyUrl: string;
+  messages: ChatMessage[];
+  onDelta: (chunk: string) => void;
+}): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(opts.easyProxyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: opts.model, messages: opts.messages, stream: true, temperature: 0.8 }),
+    });
+  } catch (err) {
+    throw new LlmError("EasyProxy unreachable at " + opts.easyProxyUrl + " — " + String(err));
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new LlmError("EasyProxy HTTP " + res.status + " (visible fail, not a canned reply). " + t.slice(0, 400), res.status);
+  }
+  if (!res.body) throw new LlmError("EasyProxy stream had no body");
+  return readOpenAiSse(res, opts.onDelta);
+}
+
+async function readOpenAiSse(res: Response, onDelta: (chunk: string) => void): Promise<string> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let acc = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const parts = buf.split("\n");
+    buf = parts.pop() ?? "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (data === "[DONE]") continue;
+      try {
+        const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+        const piece = json.choices?.[0]?.delta?.content ?? "";
+        if (piece) { acc += piece; onDelta(piece); }
+      } catch { /* ignore keepalives */ }
+    }
+  }
+  if (acc.trim().length === 0) throw new LlmError("EasyProxy stream finished with empty content");
+  return acc;
+}

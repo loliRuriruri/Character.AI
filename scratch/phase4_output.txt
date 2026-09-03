@@ -1,0 +1,24 @@
+﻿
+Loading http://127.0.0.1:8766/index.html
+[ELECTRON_LOG]: [VRM] Loaded idle VRMA clip successfully! Duration: 10.375082969665527 tracks: 21
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'nod': 7.27s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'wave': 11.80s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'explain': 9.32s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'laugh': 11.68s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'think': 9.60s, 52 tracks
+
+=== 1. SIMULATING FULL CONVERSATION SCENARIO ===
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:04.102Z idle -> listening
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:04.718Z listening -> speaking
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:07.158Z speaking -> afterglow
+
+=== 2. VERIFYING GESTURE COMPLETION & T-POSE AVOIDANCE ===
+HUD Status after scenario: {
+  "hudText": "MOTION V2 HUD (Active)\nConvState: speaking | Gesture: explain\nCD: 2.5s | dt: 50.0ms | vrm.update: #8\nTop Expressions:\nnone (weight 0)",
+  "motionV2": true
+}
+
+=== 3. TESTING ROLLBACK TO MOTION_V2 = false ===
+Rollback status: {
+  "motionV2": false
+}

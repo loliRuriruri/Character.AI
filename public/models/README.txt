@@ -1,0 +1,1 @@
+Place HatsuneMikuNT.vrm here.

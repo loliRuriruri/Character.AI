@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VRM Rig & VRMA Isolation Test (/debug/rigtest)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #18181b; color: #f4f4f5; font-family: ui-monospace, monospace;
+    }
+    #canvas { width: 100%; height: 100%; display: block; }
+    #panel {
+      position: absolute; top: 16px; left: 16px; width: 420px; max-height: calc(100vh - 32px);
+      overflow-y: auto; background: rgba(24, 24, 27, 0.92); border: 1px solid #3f3f46;
+      border-radius: 8px; padding: 16px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+    }
+    h2 { font-size: 14px; margin-bottom: 8px; color: #38bdf8; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    button {
+      background: #27272a; border: 1px solid #52525b; color: #fafafa;
+      padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;
+    }
+    button:hover { background: #3f3f46; border-color: #38bdf8; }
+    pre {
+      background: #09090b; border: 1px solid #27272a; padding: 8px;
+      border-radius: 4px; overflow-x: auto; max-height: 280px; font-size: 11px;
+      color: #a1a1aa; white-space: pre-wrap; word-break: break-all; margin-top: 6px;
+    }
+    .status-ok { color: #4ade80; }
+    .status-warn { color: #facc15; }
+    .status-err { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h2>VRM 0.0 Rig & VRMA Isolation Test</h2>
+    <div id="summary" style="margin-bottom: 12px;">Initializing...</div>
+    <div class="btn-group">
+      <button id="btn-t1">T1: resetNormalizedPose()</button>
+      <button id="btn-t2">T2: L-UpperArm Z=-1.2</button>
+      <button id="btn-vrma-unfiltered">T3: Play Unfiltered VRMA</button>
+      <button id="btn-vrma-filtered">T3: Play Body-Filtered VRMA</button>
+      <button id="btn-stop">Stop Mixer</button>
+    </div>
+    <div style="font-weight: bold; margin-top: 8px;">Log Output:</div>
+    <pre id="log"></pre>
+  </div>
+  <canvas id="canvas"></canvas>
+  <script type="module" src="/src/debug/rigtest.ts"></script>
+</body>
+</html>

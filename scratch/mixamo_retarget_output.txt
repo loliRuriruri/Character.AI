@@ -1,0 +1,89 @@
+﻿
+Loading http://127.0.0.1:8771/index.html
+[ELECTRON_LOG]: [VRM] Loaded idle VRMA clip successfully! Duration: 10.375082969665527 tracks: 21
+[ELECTRON_LOG]: [loadMixamoAnimation] Retargeted 'nod' (1.93s): raw tracks 53 -> filtered tracks 51 (hips.position, expression, lookAt removed: 2)
+[ELECTRON_LOG]: [MotionDirector] Registered retargeted Mixamo gesture for 'nod': duration 1.93s, tracks: 51
+[ELECTRON_LOG]: [loadMixamoAnimation] Retargeted 'wave' (5.10s): raw tracks 53 -> filtered tracks 51 (hips.position, expression, lookAt removed: 2)
+[ELECTRON_LOG]: [MotionDirector] Registered retargeted Mixamo gesture for 'wave': duration 5.10s, tracks: 51
+[ELECTRON_LOG]: [loadMixamoAnimation] Retargeted 'explain' (20.80s): raw tracks 53 -> filtered tracks 51 (hips.position, expression, lookAt removed: 2)
+[ELECTRON_LOG]: [MotionDirector] Registered retargeted Mixamo gesture for 'explain': duration 20.80s, tracks: 51
+[ELECTRON_LOG]: [loadMixamoAnimation] Retargeted 'laugh' (9.77s): raw tracks 53 -> filtered tracks 51 (hips.position, expression, lookAt removed: 2)
+[ELECTRON_LOG]: [MotionDirector] Registered retargeted Mixamo gesture for 'laugh': duration 9.77s, tracks: 51
+[ELECTRON_LOG]: [loadMixamoAnimation] Retargeted 'think' (4.23s): raw tracks 53 -> filtered tracks 51 (hips.position, expression, lookAt removed: 2)
+[ELECTRON_LOG]: [MotionDirector] Registered retargeted Mixamo gesture for 'think': duration 4.23s, tracks: 51
+
+=== 1. VERIFYING RETARGETED CLIPS & TRACK FILTERING ===
+[
+  {
+    "name": "nod",
+    "duration": 1.933,
+    "totalTracks": 51,
+    "hasHipsPosition": false,
+    "hasLookAtTracks": false,
+    "hasExpressionTracks": false
+  },
+  {
+    "name": "wave",
+    "duration": 5.1,
+    "totalTracks": 51,
+    "hasHipsPosition": false,
+    "hasLookAtTracks": false,
+    "hasExpressionTracks": false
+  },
+  {
+    "name": "explain",
+    "duration": 20.8,
+    "totalTracks": 51,
+    "hasHipsPosition": false,
+    "hasLookAtTracks": false,
+    "hasExpressionTracks": false
+  },
+  {
+    "name": "laugh",
+    "duration": 9.767,
+    "totalTracks": 51,
+    "hasHipsPosition": false,
+    "hasLookAtTracks": false,
+    "hasExpressionTracks": false
+  },
+  {
+    "name": "think",
+    "duration": 4.233,
+    "totalTracks": 51,
+    "hasHipsPosition": false,
+    "hasLookAtTracks": false,
+    "hasExpressionTracks": false
+  }
+]
+
+=== 2. SAMPLING KINEMATICS & CHECKING INVERSION (wave & think) ===
+Wave Kinematics (check rightHand raised): {
+  gesture: 'wave',
+  rightHandPos: [ '0.221', '-0.000', '0.000' ],
+  leftHandPos: [ '-0.221', '0.000', '-0.000' ],
+  headRot: [ '-0.162', '-0.024', '0.033' ],
+  hipsPos: [ '0.160', '0.948', '-0.032' ]
+}
+Think Kinematics (check hand near chin): {
+  gesture: 'think',
+  rightHandPos: [ '0.221', '-0.000', '0.000' ],
+  leftHandPos: [ '-0.221', '0.000', '-0.000' ],
+  headRot: [ '-0.004', '-0.258', '-0.270' ],
+  hipsPos: [ '0.153', '0.948', '-0.033' ]
+}
+Nod Kinematics (check head pitch forward): {
+  gesture: 'nod',
+  headRot: [ '0.193', '0.154', '0.046' ],
+  hipsPos: [ '0.148', '0.948', '-0.034' ]
+}
+
+=== 3. CHECKING IDLE RESTORATION & T-POSE POP ===
+Idle Status (check armRotZ != 0): {
+  hudText: 'MOTION V2 HUD (Active)\n' +
+    'ConvState: idle | Gesture: idle\n' +
+    'CD: 0.0s | dt: 16.6ms | vrm.update: #436\n' +
+    'Top Expressions:\n' +
+    'none (weight 0)',
+  hipsPos: [ '0.168', '0.947', '-0.032' ],
+  armRotZ: '1.337'
+}

@@ -1,0 +1,172 @@
+{
+  "item1": {
+    "idleSamples": [
+      {
+        "minute": 1,
+        "forcedGcHeapMb": 43.37
+      },
+      {
+        "minute": 2,
+        "forcedGcHeapMb": 41.38
+      },
+      {
+        "minute": 3,
+        "forcedGcHeapMb": 41.38
+      },
+      {
+        "minute": 4,
+        "forcedGcHeapMb": 41.38
+      },
+      {
+        "minute": 5,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 6,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 7,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 8,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 9,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 10,
+        "forcedGcHeapMb": 41.39
+      },
+      {
+        "minute": 11,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "minute": 12,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "minute": 13,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "minute": 14,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "minute": 15,
+        "forcedGcHeapMb": 41.4
+      }
+    ],
+    "convCheckpoints": [
+      {
+        "turn": 0,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "turn": 5,
+        "forcedGcHeapMb": 41.4
+      },
+      {
+        "turn": 10,
+        "forcedGcHeapMb": 41.42
+      },
+      {
+        "turn": 15,
+        "forcedGcHeapMb": 41.44
+      },
+      {
+        "turn": 20,
+        "forcedGcHeapMb": 41.45
+      },
+      {
+        "turn": 25,
+        "forcedGcHeapMb": 41.45
+      },
+      {
+        "turn": 30,
+        "forcedGcHeapMb": 41.45
+      }
+    ]
+  },
+  "item2": {
+    "modelA": {
+      "uuid": "62f16a47-1ba5-43ad-978a-eca68eae3f4c",
+      "children": 4,
+      "heapMb": 41.15,
+      "sampleCacheKey": "62f16a47-1ba5-43ad-978a-eca68eae3f4c:idle:./vrma/mixamo/idle.fbx"
+    },
+    "modelB": {
+      "uuid": "eafe275f-24b7-4b5d-9274-694bf0ab0fee",
+      "children": 4,
+      "heapMb": 97.79,
+      "sampleCacheKey": "eafe275f-24b7-4b5d-9274-694bf0ab0fee:idle:./vrma/mixamo/idle.fbx"
+    },
+    "restoredModelA": {
+      "uuid": "cc1d8085-7d64-4f97-ac55-f9c4291bc2c6",
+      "children": 4,
+      "heapMb": 106.46
+    },
+    "cacheInvalidatedPerInstance": true,
+    "sceneChildrenConstant": true
+  },
+  "item3": {
+    "H_raw": {
+      "t0s": {
+        "chest": [
+          -0.021531468648521335,
+          0.003227233479694278,
+          -0.0033267790590439526,
+          0.9997574272607318
+        ],
+        "neck": [
+          0.004117314957906845,
+          0.05621849409946124,
+          -0.013228294668275657,
+          0.9983223631968262
+        ],
+        "head": [
+          0.821489070734463,
+          0.38252941723888684,
+          -0.16042731878891775,
+          -0.39126720664643666
+        ]
+      },
+      "t300s": {
+        "chest": [
+          -0.02161154368426382,
+          0.00292800411066887,
+          -0.00399588175817927,
+          0.999754170234106
+        ],
+        "neck": [
+          -0.003877000982650226,
+          0.054756989284649366,
+          -0.013673497897278017,
+          0.9983985559099705
+        ],
+        "head": [
+          0.8240078950798955,
+          0.3816447318623119,
+          -0.15511397094832427,
+          -0.38897036327255924
+        ]
+      }
+    },
+    "I_raw": {
+      "frame1_dt": 0.05,
+      "frame2_dt": 0.0166,
+      "frame3_dt": 0.0167
+    }
+  },
+  "item4": {
+    "tEventReceived": 4943.799999999988,
+    "tPlayExecuted": 4944,
+    "measuredDelayMs": 0.2,
+    "isSubMillisecond": true
+  }
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MikuChat v3 — 환경설정</title>
+    <style>
+      :root {
+        --bg: rgba(10, 18, 28, 0.96);
+        --line: rgba(57, 197, 187, 0.35);
+        --miku: #39c5bb;
+        --text: #e8fbff;
+        --dim: #8aa8b0;
+        --err: #ff6b8a;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; width: 100%; height: 100%;
+        background: transparent;
+        font: 13px/1.45 "Pretendard", "Segoe UI", "Malgun Gothic", sans-serif;
+        color: var(--text);
+        user-select: none;
+      }
+      #shell {
+        height: 100%; display: flex; flex-direction: column;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      }
+      header {
+        -webkit-app-region: drag;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 30, 42, 0.8);
+      }
+      header button, header select, header input, .no-drag { -webkit-app-region: no-drag; }
+      .title { font-weight: 800; color: var(--miku); letter-spacing: 0.05em; font-size: 14px; }
+      button {
+        background: rgba(57,197,187,0.14);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 5px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.15s;
+      }
+      button:hover { background: rgba(57,197,187,0.28); border-color: var(--miku); }
+      #content {
+        flex: 1; overflow-y: auto; padding: 14px;
+        display: flex; flex-direction: column; gap: 14px;
+      }
+      .section {
+        background: rgba(14, 25, 36, 0.6);
+        border: 1px solid rgba(57,197,187,0.2);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .sec-title {
+        font-size: 12px; font-weight: 700; color: var(--miku);
+        text-transform: uppercase; letter-spacing: 0.05em;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--dim); }
+      input, select {
+        background: rgba(0,0,0,0.5); border: 1px solid var(--line);
+        border-radius: 8px; padding: 6px 10px; color: var(--text); font: inherit; outline: none;
+      }
+      select option { background: #0c1824; }
+      input:focus, select:focus { border-color: var(--miku); box-shadow: 0 0 10px rgba(57,197,187,0.3); }
+      .btn-primary { background: var(--miku); color: #071318; font-weight: 800; border-color: var(--miku); }
+      .btn-primary:hover { background: #52ded4; }
+      .btn-file {
+        background: linear-gradient(135deg, rgba(57,197,187,0.25), rgba(225,40,133,0.25));
+        border-color: var(--miku); font-weight: 700;
+      }
+      .footer {
+        padding: 10px 14px; border-top: 1px solid var(--line);
+        display: flex; justify-content: space-between; align-items: center;
+        background: rgba(12, 22, 32, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/settings/main.ts"></script>
+  </body>
+</html>

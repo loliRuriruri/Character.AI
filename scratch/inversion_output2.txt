@@ -1,0 +1,82 @@
+﻿
+[BROWSER_ERR]: %cElectron Security Warning (Disabled webSecurity) font-weight: bold; This renderer process has "webSecurity" disabled. This
+  exposes users of this app to severe security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+[BROWSER_ERR]: %cElectron Security Warning (Insecure Resources) font-weight: bold; This renderer process loads resources using insecure
+  protocols. This exposes users of this app to unnecessary security risks.
+  Consider loading the following resources over HTTPS or FTPS. 
+- http://local.adguard.org/?ts=1788430726994&type=content-script&dmn=127.0.0.1:8774&url=http%3A%2F%2F127.0.0.1%3A8774%2Findex.html&app=electron.exe&css=2&js=1&rel=1&rji=1&sbe=1&stealth=1&st-dnt
+  
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+[BROWSER_ERR]: %cElectron Security Warning (allowRunningInsecureContent) font-weight: bold; This renderer process has "allowRunningInsecureContent"
+  enabled. This exposes users of this app to severe security risks.
+
+  
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+[BROWSER_ERR]: %cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security
+  Policy set or a policy with "unsafe-eval" enabled. This exposes users of
+  this app to unnecessary security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+=== WAVE WORLD KINEMATICS ===
+{
+  "rHand": [
+    "-0.304",
+    "0.853",
+    "0.029"
+  ],
+  "lHand": [
+    "-0.016",
+    "0.847",
+    "0.018"
+  ],
+  "head": [
+    "-0.155",
+    "1.360",
+    "-0.004"
+  ],
+  "rightHandIsWavingUp": false,
+  "leftHandIsDown": true
+}
+=== THINK WORLD KINEMATICS ===
+{
+  "rHand": [
+    "-0.223",
+    "1.063",
+    "0.250"
+  ],
+  "head": [
+    "-0.122",
+    "1.357",
+    "-0.016"
+  ],
+  "distHandToHead": "0.409",
+  "handInFrontOfFace": true
+}
+=== NOD WORLD KINEMATICS ===
+{
+  "headRotX": "0.150",
+  "isNoddingDown": true
+}
+=== EXPLAIN WORLD KINEMATICS ===
+{
+  "handsProjectedForward": false
+}
+=== LAUGH WORLD KINEMATICS ===
+{
+  "handNearChest": false
+}

@@ -1,0 +1,95 @@
+import { Ipc } from "../shared/ipc";
+import type { EmotionName } from "../shared/types";
+import { VrmStage } from "./VrmStage";
+import type { GestureName } from "./GestureEngine";
+
+const canvas = document.getElementById("stage") as HTMLCanvasElement;
+const boot = document.getElementById("boot");
+const stage = new VrmStage(canvas);
+
+let lastHit = false;
+let ttsEnabled = true;
+
+function setBoot(msg: string): void {
+  if (boot) boot.textContent = msg;
+}
+
+function koreanVoice(): SpeechSynthesisVoice | undefined {
+  const voices = speechSynthesis.getVoices();
+  return voices.find((v) => v.lang.toLowerCase().startsWith("ko"));
+}
+
+function speak(text: string): void {
+  if (!ttsEnabled) {
+    stage.speakVisemes(text, Math.max(0.8, text.length * 0.08));
+    return;
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ko-KR";
+  const v = koreanVoice();
+  if (v) u.voice = v;
+  u.rate = 1.05;
+  u.onstart = () => {
+    window.miku.send(Ipc.SPEAKING, true);
+    stage.speakVisemes(text, Math.max(0.8, text.length * 0.09));
+  };
+  u.onend = () => {
+    window.miku.send(Ipc.SPEAKING, false);
+    stage.stopVisemes();
+  };
+  u.onerror = () => {
+    window.miku.send(Ipc.SPEAKING, false);
+    stage.stopVisemes();
+  };
+  speechSynthesis.speak(u);
+}
+
+window.miku.on(Ipc.TRANSCRIPT, (text: unknown) => {
+  if (typeof text === "string" && text) speak(text);
+});
+window.miku.on(Ipc.EMOTION, (name: unknown) => {
+  stage.setEmotion(name as EmotionName);
+});
+window.miku.on(Ipc.GESTURE, (name: unknown) => {
+  stage.play(name as GestureName);
+});
+window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
+  const st = s as { settings?: { ttsEnabled?: boolean } };
+  if (typeof st.settings?.ttsEnabled === "boolean") ttsEnabled = st.settings.ttsEnabled;
+});
+
+window.addEventListener("pointermove", (ev) => {
+  const hit = stage.hitTest(ev.clientX, ev.clientY);
+  if (hit !== lastHit) {
+    lastHit = hit;
+    window.miku.send(Ipc.SET_CLICK_THROUGH, !hit);
+  }
+});
+
+window.addEventListener("keydown", (ev) => {
+  if (ev.code === "Space" && !ev.repeat) {
+    ev.preventDefault();
+    window.miku.send(Ipc.PTT_START);
+  }
+});
+window.addEventListener("keyup", (ev) => {
+  if (ev.code === "Space") window.miku.send(Ipc.PTT_STOP);
+});
+
+speechSynthesis.addEventListener("voiceschanged", () => koreanVoice());
+
+async function bootApp(): Promise<void> {
+  try {
+    setBoot("VRM 로딩…");
+    await stage.load("/models/HatsuneMikuNT.vrm", "/models/idle_loop.vrma");
+    if (!stage.gestures) throw new Error("GestureEngine was not constructed");
+    setBoot("");
+    window.miku.send(Ipc.READY);
+    stage.play("wave");
+  } catch (err) {
+    setBoot("모델 로드 실패: " + String(err));
+  }
+}
+
+void bootApp();

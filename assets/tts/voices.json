@@ -1,0 +1,123 @@
+{
+  "defaultId": "my_voice_03",
+  "notes": "User-trained clone references for VoxCPM2 (wav+transcript). Not official character voices.",
+  "voices": [
+    {
+      "id": "my_voice_01",
+      "displayName": "내 목소리 1",
+      "wav": "assets/tts/voices/my_voice_01/ref.wav",
+      "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\my_voice_01\\neutral\\wavs\\0077.wav",
+      "durationSec": 8.0,
+      "rms": 0.1348
+    },
+    {
+      "id": "my_voice_02",
+      "displayName": "내 목소리 2",
+      "wav": "assets/tts/voices/my_voice_02/ref.wav",
+      "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\my_voice_02\\neutral\\wavs\\0077.wav",
+      "durationSec": 8.0,
+      "rms": 0.1348
+    },
+    {
+      "id": "my_voice_03",
+      "displayName": "내 목소리 3",
+      "wav": "assets/tts/voices/my_voice_03/ref.wav",
+      "promptText": "ノイズの多い環境でも、私の音声認識は正確です。あなたの囁き声も、一言も漏らさず拾えますよ。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\my_voice_03\\neutral\\wavs\\0073.wav",
+      "durationSec": 10.16,
+      "rms": 0.1301
+    },
+    {
+      "id": "reze",
+      "displayName": "레제",
+      "wav": "assets/tts/voices/reze/ref.wav",
+      "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\reze\\neutral\\wavs\\0077.wav",
+      "durationSec": 8.0,
+      "rms": 0.1348
+    },
+    {
+      "id": "reze2",
+      "displayName": "레제 2",
+      "wav": "assets/tts/voices/reze2/ref.wav",
+      "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\reze2\\neutral\\wavs\\0077.wav",
+      "durationSec": 8.0,
+      "rms": 0.1348
+    },
+    {
+      "id": "test_voice_200",
+      "displayName": "테스트 보이스",
+      "wav": "assets/tts/voices/test_voice_200/ref.wav",
+      "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\test_voice_200\\neutral\\wavs\\0077.wav",
+      "durationSec": 8.0,
+      "rms": 0.1348
+    },
+    {
+      "id": "ayaka",
+      "displayName": "아야카",
+      "wav": "assets/tts/voices/ayaka/ref.wav",
+      "promptText": "このような料理を味わわせていただき、ありがとうございます。この味を心に留めておきます。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Ayaka\\raw\\000043.wav",
+      "durationSec": 7.968,
+      "rms": 0.1362
+    },
+    {
+      "id": "barbara",
+      "displayName": "바바라",
+      "wav": "assets/tts/voices/barbara/ref.wav",
+      "promptText": "応援ありがとう！あっ、いっけない、少し興奮しすぎたかな…ドキドキが止まらないの。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Barbara\\raw\\000044.wav",
+      "durationSec": 7.996,
+      "rms": 0.1576
+    },
+    {
+      "id": "ganyu",
+      "displayName": "감우",
+      "wav": "assets/tts/voices/ganyu/ref.wav",
+      "promptText": "これが新たな生活の道でしょうか…わかりました、文句は言いません。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Ganyu\\raw\\000051.wav",
+      "durationSec": 8.652,
+      "rms": 0.1207
+    },
+    {
+      "id": "hu_tao",
+      "displayName": "호두",
+      "wav": "assets/tts/voices/hu_tao/ref.wav",
+      "promptText": "陰気な場所に月光が差し込むことで生える花があるの。見たことない？じゃあ、今度見せてあげるね。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Hu_Tao\\raw\\000022.wav",
+      "durationSec": 7.892,
+      "rms": 0.146
+    },
+    {
+      "id": "keqing",
+      "displayName": "각청",
+      "wav": "assets/tts/voices/keqing/ref.wav",
+      "promptText": "「昨日の経験は明日の力になる」、この全ては君と共に手に入れたものよ。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Keqing\\raw\\000057.wav",
+      "durationSec": 7.869,
+      "rms": 0.1677
+    },
+    {
+      "id": "mona",
+      "displayName": "모나",
+      "wav": "assets/tts/voices/mona/ref.wav",
+      "promptText": "変えられない、逆らえない、受け入れる以外何もできないのが運命の運命たる所以なのです。",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Mona\\raw\\000004.wav",
+      "durationSec": 7.609,
+      "rms": 0.0971
+    },
+    {
+      "id": "nilou",
+      "displayName": "닐루",
+      "wav": "assets/tts/voices/nilou/ref.wav",
+      "promptText": "こんばんは。今夜、ズバイルシアターで踊るんだ。もし良かったら、二人分のチケットをあげよっか？",
+      "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\Nilou\\raw\\000012.wav",
+      "durationSec": 8.308,
+      "rms": 0.1275
+    }
+  ]
+}

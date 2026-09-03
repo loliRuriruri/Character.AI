@@ -1,0 +1,18 @@
+﻿
+electron.exe : (node:47120) UnhandledPromiseRejectionWarning: Error: Script failed to execute, this normally means an e
+rror was thrown. Check the renderer console for the error.
+위치 줄:1 문자:1
++ & "C:\TEST\MikuChat-v3\node_modules\electron\dist\electron.exe" "C:\T ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:47120) Un... for the error.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at node:electron/js2c/sandbox_bundle:2:127259
+    at IpcRendererInternal.<anonymous> (node:electron/js2c/sandbox_bundle:2:121504)
+    at IpcRendererInternal.emit (node:electron/js2c/sandbox_bundle:2:45997)
+    at Object.onMessage (node:electron/js2c/sandbox_bundle:2:119481)
+(Use `electron --trace-warnings ...` to show where the warning was created)
+(node:47120) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing in
+side of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To term
+inate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://no
+dejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)

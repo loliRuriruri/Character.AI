@@ -1,0 +1,557 @@
+{
+  "scenarioA": {
+    "pass": true,
+    "turns": [
+      {
+        "turn": 1,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:33.193Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:33.285Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:33.369Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "nod",
+            "iso": "2026-09-03T12:55:33.453Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:33.619Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:35.119Z"
+          }
+        ]
+      },
+      {
+        "turn": 2,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:35.119Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:35.203Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:35.283Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "think",
+            "iso": "2026-09-03T12:55:35.369Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:35.537Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:37.119Z"
+          }
+        ]
+      },
+      {
+        "turn": 3,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:37.119Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:37.203Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:37.286Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "idle",
+            "iso": "2026-09-03T12:55:37.369Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:37.537Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:39.119Z"
+          }
+        ]
+      },
+      {
+        "turn": 4,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:39.119Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:39.203Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:39.284Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "idle",
+            "iso": "2026-09-03T12:55:39.370Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:39.537Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:41.120Z"
+          }
+        ]
+      },
+      {
+        "turn": 5,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:41.120Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:41.203Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:41.286Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "explain",
+            "iso": "2026-09-03T12:55:41.370Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:41.536Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:43.036Z"
+          }
+        ]
+      },
+      {
+        "turn": 6,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:43.036Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:43.118Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:43.203Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "nod",
+            "iso": "2026-09-03T12:55:43.286Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:43.453Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:44.953Z"
+          }
+        ]
+      },
+      {
+        "turn": 7,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:44.953Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:45.037Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:45.120Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "think",
+            "iso": "2026-09-03T12:55:45.203Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:45.371Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:46.952Z"
+          }
+        ]
+      },
+      {
+        "turn": 8,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:46.952Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:47.037Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:47.120Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "idle",
+            "iso": "2026-09-03T12:55:47.201Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:47.370Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:48.870Z"
+          }
+        ]
+      },
+      {
+        "turn": 9,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:48.870Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:48.954Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:49.037Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "idle",
+            "iso": "2026-09-03T12:55:49.120Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:49.287Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:50.787Z"
+          }
+        ]
+      },
+      {
+        "turn": 10,
+        "completed": true,
+        "logs": [
+          {
+            "step": "listening",
+            "state": "listening",
+            "iso": "2026-09-03T12:55:50.787Z"
+          },
+          {
+            "step": "thinking",
+            "state": "thinking",
+            "iso": "2026-09-03T12:55:50.868Z"
+          },
+          {
+            "step": "speaking",
+            "state": "speaking",
+            "iso": "2026-09-03T12:55:50.954Z"
+          },
+          {
+            "step": "intent_gesture",
+            "gesture": "explain",
+            "iso": "2026-09-03T12:55:51.037Z"
+          },
+          {
+            "step": "afterglow",
+            "state": "afterglow",
+            "iso": "2026-09-03T12:55:51.204Z"
+          },
+          {
+            "step": "idle",
+            "state": "idle",
+            "iso": "2026-09-03T12:55:52.704Z"
+          }
+        ]
+      }
+    ]
+  },
+  "scenarioB": {
+    "shortState": "idle",
+    "longState": "idle",
+    "midGesture": "think",
+    "lateGesture": "idle",
+    "pass": true
+  },
+  "scenarioC": {
+    "pass": true,
+    "finalState": "idle",
+    "log": [
+      {
+        "step": "speaking_1",
+        "state": "speaking"
+      },
+      {
+        "step": "interrupted_to_listening"
+      },
+      {
+        "step": "speaking_2",
+        "state": "speaking"
+      },
+      {
+        "step": "interrupted_to_listening"
+      },
+      {
+        "step": "speaking_3",
+        "state": "speaking"
+      },
+      {
+        "step": "interrupted_to_listening"
+      }
+    ]
+  },
+  "scenarioD": {
+    "delayMs": 0,
+    "fallbackGesture": "nod",
+    "state": "speaking",
+    "pass": false
+  },
+  "scenarioE": {
+    "pass": true,
+    "totalRuns": 15,
+    "allHipsConstant": true,
+    "zeroTPose": true
+  },
+  "scenarioF": {
+    "totalVowels": 21,
+    "missedList": "없음",
+    "pass": true
+  },
+  "scenarioG": {
+    "pass": true,
+    "measurements": [
+      {
+        "emotion": "happy",
+        "emoW": 0.12798414991640886,
+        "aaW": 0.4,
+        "sum": 0.528,
+        "cappedAt0_6": true
+      },
+      {
+        "emotion": "relaxed",
+        "emoW": 0.12798415971733662,
+        "aaW": 0.4,
+        "sum": 0.528,
+        "cappedAt0_6": true
+      },
+      {
+        "emotion": "angry",
+        "emoW": 0.1280029235925698,
+        "aaW": 0.4,
+        "sum": 0.528,
+        "cappedAt0_6": true
+      },
+      {
+        "emotion": "sad",
+        "emoW": 0.13097280299682632,
+        "aaW": 0.4,
+        "sum": 0.531,
+        "cappedAt0_6": true
+      }
+    ]
+  },
+  "scenarioH": {
+    "qChest_0s": [
+      "-0.0154",
+      "0.0032",
+      "-0.0033",
+      "0.9999"
+    ],
+    "qChest_300s": [
+      "-0.0216",
+      "0.0029",
+      "-0.0040",
+      "0.9998"
+    ],
+    "qHead_0s": [
+      "0.3835",
+      "0.1785",
+      "0.2950",
+      "-0.8567"
+    ],
+    "qHead_300s": [
+      "0.3863",
+      "0.1735",
+      "0.2975",
+      "-0.8557"
+    ],
+    "angularDifferenceChestDeg": 0.718,
+    "angularDifferenceHeadDeg": 0.73,
+    "pass": true
+  },
+  "scenarioI": {
+    "rawDeltaSeconds": 300,
+    "clampedDtSeconds": 0.05,
+    "pass": true
+  },
+  "scenarioJ": {
+    "initialId": "7546ca30-4578-4e47-9ac8-791a33507d44",
+    "swappedId": "7ab6831a-1f33-44f6-9f11-e023ebe5dd20",
+    "restoredId": "4dfa98b4-c1ab-4e8c-b5e3-bfdda088575e",
+    "isNewInstance": true,
+    "cacheInvalidatedPerModel": true,
+    "heapBeforeMb": 44.92,
+    "heapAfterMb": 179.05,
+    "pass": true
+  },
+  "scenarioK": {
+    "pass": true,
+    "stats": [
+      {
+        "gesture": "nod",
+        "rawTracks": 53,
+        "filteredTracks": 51,
+        "removedCount": 2,
+        "lookAtRemaining": 0,
+        "expressionRemaining": 0,
+        "hipsPositionRemaining": 0
+      },
+      {
+        "gesture": "wave",
+        "rawTracks": 53,
+        "filteredTracks": 51,
+        "removedCount": 2,
+        "lookAtRemaining": 0,
+        "expressionRemaining": 0,
+        "hipsPositionRemaining": 0
+      },
+      {
+        "gesture": "explain",
+        "rawTracks": 53,
+        "filteredTracks": 51,
+        "removedCount": 2,
+        "lookAtRemaining": 0,
+        "expressionRemaining": 0,
+        "hipsPositionRemaining": 0
+      },
+      {
+        "gesture": "laugh",
+        "rawTracks": 53,
+        "filteredTracks": 51,
+        "removedCount": 2,
+        "lookAtRemaining": 0,
+        "expressionRemaining": 0,
+        "hipsPositionRemaining": 0
+      },
+      {
+        "gesture": "think",
+        "rawTracks": 53,
+        "filteredTracks": 51,
+        "removedCount": 2,
+        "lookAtRemaining": 0,
+        "expressionRemaining": 0,
+        "hipsPositionRemaining": 0
+      }
+    ]
+  },
+  "scenarioL": {
+    "intentsSent": 10,
+    "intervalMs": 300,
+    "playedCount": 1,
+    "pass": true
+  },
+  "performance": {
+    "avgFps": 60.1,
+    "minFps": 57.8,
+    "updatesPerFrame": 1,
+    "heapMb": 114.96
+  }
+}

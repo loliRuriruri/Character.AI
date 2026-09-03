@@ -1,0 +1,24 @@
+﻿
+Loading http://127.0.0.1:8767/index.html
+[ELECTRON_LOG]: [VRM] Loaded idle VRMA clip successfully! Duration: 10.375082969665527 tracks: 21
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'nod': 7.27s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'wave': 11.80s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'explain': 9.32s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'laugh': 11.68s, 52 tracks
+[ELECTRON_LOG]: [MotionDirector] Loaded full-body VRMA gesture for 'think': 9.60s, 52 tracks
+
+=== 1. FULL CONVERSATION SCENARIO (60FPS) ===
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:25.072Z idle -> listening
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:25.684Z listening -> speaking
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:27.916Z speaking -> afterglow
+[ELECTRON_LOG]: [ConvState Transition] 2026-09-03T12:02:29.408Z afterglow -> idle
+
+=== 2. HUD STATUS AFTER IDLE RETURN ===
+MOTION V2 HUD (Active)
+ConvState: idle | Gesture: idle
+CD: 0.0s | dt: 16.6ms | vrm.update: #416
+Top Expressions:
+none (weight 0)
+
+=== 3. TESTING ROLLBACK ===
+Rollback confirmed: true

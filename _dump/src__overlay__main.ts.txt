@@ -1,0 +1,186 @@
+import "./overlay.css";
+import { Ipc } from "../shared/ipc";
+import type { AppSettings } from "../shared/types";
+
+const root = document.getElementById("root")!;
+root.innerHTML = `
+<div id="shell">
+  <header>
+    <span class="title">MIKU</span>
+    <span id="status" class="no-drag">준비</span>
+    <span class="spacer"></span>
+    <button id="btn-settings" type="button">설정</button>
+    <button id="btn-collapse" type="button">접기</button>
+  </header>
+  <div id="error"></div>
+  <div id="log"></div>
+  <div id="composer" class="no-drag">
+    <textarea id="input" placeholder="미쿠에게 말하기… (Space PTT)"></textarea>
+    <button id="ptt" type="button">PTT</button>
+    <button id="send" type="button">전송</button>
+  </div>
+  <div id="settings" class="no-drag">
+    <label>Provider <select id="provider"><option value="ollama">Ollama</option><option value="easyproxy">EasyProxy :8317</option></select></label>
+    <label>Model <input id="model" /></label>
+    <label>PTT 키 <input id="pttKey" /></label>
+    <label>TTS <select id="tts"><option value="on">켜기</option><option value="off">끄기</option></select></label>
+    <button id="save" type="button">저장</button>
+  </div>
+</div>
+`;
+
+const shell = document.getElementById("shell")!;
+const logEl = document.getElementById("log")!;
+const errEl = document.getElementById("error")!;
+const input = document.getElementById("input") as HTMLTextAreaElement;
+const pttBtn = document.getElementById("ptt")!;
+const statusEl = document.getElementById("status")!;
+let collapsed = false;
+let streamingEl: HTMLElement | null = null;
+let pttHeld = false;
+
+function showError(msg: string | null): void {
+  if (!msg) { errEl.classList.remove("show"); errEl.textContent = ""; return; }
+  errEl.textContent = msg;
+  errEl.classList.add("show");
+}
+
+function addBubble(role: "user" | "assistant", text: string, partial = false): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "bubble " + role + (partial ? " partial" : "");
+  el.textContent = text;
+  logEl.appendChild(el);
+  logEl.scrollTop = logEl.scrollHeight;
+  return el;
+}
+
+function applySettings(s: AppSettings): void {
+  (document.getElementById("provider") as HTMLSelectElement).value = s.provider;
+  (document.getElementById("model") as HTMLInputElement).value = s.model;
+  (document.getElementById("pttKey") as HTMLInputElement).value = s.pttKey;
+  (document.getElementById("tts") as HTMLSelectElement).value = s.ttsEnabled ? "on" : "off";
+}
+
+function sendChat(text: string): void {
+  const t = text.trim();
+  if (!t) return;
+  showError(null);
+  addBubble("user", t);
+  streamingEl = addBubble("assistant", "…", true);
+  statusEl.textContent = "생각 중";
+  window.miku.send(Ipc.CHAT_SEND, t);
+  input.value = "";
+}
+
+document.getElementById("send")!.addEventListener("click", () => sendChat(input.value));
+input.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); sendChat(input.value); }
+});
+document.getElementById("btn-settings")!.addEventListener("click", () => {
+  document.getElementById("settings")!.classList.toggle("open");
+});
+document.getElementById("btn-collapse")!.addEventListener("click", () => {
+  collapsed = !collapsed;
+  shell.classList.toggle("collapsed", collapsed);
+  (document.getElementById("btn-collapse") as HTMLButtonElement).textContent = collapsed ? "펼치기" : "접기";
+  window.miku.send(Ipc.OVERLAY_COLLAPSE, collapsed);
+});
+document.getElementById("save")!.addEventListener("click", () => {
+  void window.miku.invoke(Ipc.SETTINGS_SET, {
+    provider: (document.getElementById("provider") as HTMLSelectElement).value,
+    model: (document.getElementById("model") as HTMLInputElement).value.trim(),
+    pttKey: (document.getElementById("pttKey") as HTMLInputElement).value.trim() || "Space",
+    ttsEnabled: (document.getElementById("tts") as HTMLSelectElement).value === "on",
+  });
+});
+
+window.miku.on(Ipc.CHAT_DELTA, (chunk: unknown) => {
+  if (!streamingEl) streamingEl = addBubble("assistant", "", true);
+  if (typeof chunk === "string") {
+    const cur = streamingEl.textContent === "…" ? "" : streamingEl.textContent ?? "";
+    streamingEl.textContent = cur + chunk;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+});
+window.miku.on(Ipc.CHAT_DONE, (text: unknown) => {
+  if (streamingEl && typeof text === "string") streamingEl.textContent = text;
+  if (streamingEl) streamingEl.classList.remove("partial");
+  streamingEl = null;
+  statusEl.textContent = "준비";
+});
+window.miku.on(Ipc.CHAT_ERROR, (msg: unknown) => {
+  if (streamingEl) streamingEl.remove();
+  streamingEl = null;
+  showError(typeof msg === "string" ? msg : String(msg));
+  statusEl.textContent = "오류";
+});
+window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
+  const st = s as { settings?: AppSettings; lastError?: string | null; pttHeld?: boolean };
+  if (st.settings) applySettings(st.settings);
+  if (st.lastError) showError(st.lastError);
+});
+window.miku.on(Ipc.PTT_KEY_STATE, (held: unknown) => {
+  pttHeld = !!held;
+  pttBtn.classList.toggle("hot", pttHeld);
+  if (pttHeld) startStt(); else stopStt();
+});
+window.miku.on(Ipc.STT_PARTIAL, (text: unknown) => {
+  if (typeof text === "string") statusEl.textContent = text;
+});
+
+type SpeechRec = {
+  lang: string; interimResults: boolean; continuous: boolean;
+  start: () => void; stop: () => void;
+  onresult: ((ev: { results: ArrayLike<{ isFinal?: boolean; 0: { transcript: string } }> }) => void) | null;
+  onerror: ((ev: { error: string }) => void) | null;
+  onend: (() => void) | null;
+};
+
+const RecImpl = (window as unknown as { webkitSpeechRecognition?: new () => SpeechRec }).webkitSpeechRecognition;
+let rec: SpeechRec | null = null;
+let recOn = false;
+
+function startStt(): void {
+  if (!RecImpl) { showError("이 Chromium 빌드에는 음성 인식이 없습니다."); return; }
+  if (recOn) return;
+  rec = new RecImpl();
+  rec.lang = "ko-KR";
+  rec.interimResults = true;
+  rec.continuous = true;
+  rec.onresult = (ev) => {
+    let text = "";
+    for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+    window.miku.send(Ipc.STT_PARTIAL, text);
+    input.value = text;
+  };
+  rec.onerror = (ev) => showError("STT 오류: " + ev.error);
+  rec.onend = () => { recOn = false; };
+  recOn = true;
+  rec.start();
+}
+
+function stopStt(): void {
+  const text = input.value.trim();
+  if (rec && recOn) rec.stop();
+  recOn = false;
+  if (text) {
+    sendChat(text);
+  }
+}
+
+pttBtn.addEventListener("mousedown", () => window.miku.send(Ipc.PTT_START));
+pttBtn.addEventListener("mouseup", () => window.miku.send(Ipc.PTT_STOP));
+pttBtn.addEventListener("mouseleave", () => { if (pttHeld) window.miku.send(Ipc.PTT_STOP); });
+
+window.addEventListener("keydown", (ev) => {
+  if (ev.code !== "Space" || ev.repeat) return;
+  if (document.activeElement === input) return;
+  ev.preventDefault();
+  window.miku.send(Ipc.PTT_START);
+});
+window.addEventListener("keyup", (ev) => {
+  if (ev.code === "Space" && document.activeElement !== input) window.miku.send(Ipc.PTT_STOP);
+});
+
+window.miku.send(Ipc.READY);
+void window.miku.invoke<AppSettings>(Ipc.SETTINGS_GET).then(applySettings);

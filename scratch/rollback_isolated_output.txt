@@ -1,0 +1,8 @@
+﻿
+Loading http://127.0.0.1:8768/index.html with MOTION_V2 forced false
+=== ROLLBACK BOOT RESULT ===
+{
+  "motionV2": false,
+  "errors": null
+}
+Console errors count: 0

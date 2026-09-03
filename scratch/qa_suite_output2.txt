@@ -1,0 +1,57 @@
+﻿
+electron.exe : [24744:0903/214923.798:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+위치 줄:1 문자:1
++ & "C:\TEST\MikuChat-v3\node_modules\electron\dist\electron.exe" "C:\T ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([24744:0903/214...??섏뿀?듬땲?? (0x5):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[24744:0903/214923.798:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+[24744:0903/214923.798:ERROR:cache_util_win.cc(20)] Unable to move the cache: ?≪꽭?ㅺ? 嫄곕??섏뿀?듬땲?? (0x5)
+[24744:0903/214923.800:ERROR:disk_cache.cc(208)] Unable to create cache
+[24744:0903/214923.800:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+[24744:0903/214923.800:ERROR:disk_cache.cc(208)] Unable to create cache
+[24744:0903/214923.800:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+[24744:0903/214923.800:ERROR:disk_cache.cc(208)] Unable to create cache
+[24744:0903/214923.800:ERROR:gpu_disk_cache.cc(713)] Gpu Cache Creation failed: -2
+==================================================
+STARTING COMPREHENSIVE QA TEST SUITE (A ~ L)
+==================================================
+
+>>> RUNNING SCENARIO A (10 Consecutive Conversation Turns)...
+Scenario A Result: FAIL All 10 turns completed!
+
+>>> RUNNING SCENARIO B (Short word vs 300+ characters)...
+Scenario B Result: PASS {"shortState":"idle","longState":"idle","midGesture":"idle","lateGesture":"idle","pass":true}
+
+>>> RUNNING SCENARIO C (3 Message Interrupts)...
+Scenario C Result: PASS Final State: idle
+
+>>> RUNNING SCENARIO D (Fallback Latency Measurement)...
+Scenario D Result: PASS {"delayMs":0.1,"fallbackGesture":"explain","state":"speaking","pass":true}
+
+>>> RUNNING SCENARIO E (15 Gesture Executions)...
+Scenario E Result: PASS {"pass":true,"totalRuns":15,"allHipsConstant":true,"zeroTPose":true}
+
+>>> RUNNING SCENARIO F (21 Korean Vowels Mapping Check)...
+Scenario F Result: PASS Missed: ?놁쓬
+
+>>> RUNNING SCENARIO G (Simultaneous Emotion + Viseme Weight Cap)...
+Scenario G Result: PASS {"pass":true,"measurements":[{"emotion":"happy","emoW":0.12794657315944674,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"relaxed","emoW":0.12798416951826216,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"angry","emoW":0.12802172176396037,"aaW":0.4,"sum":0.528,"cappedAt0_6":true},{"emotion":"sad","emoW":0.12796538604954508,"aaW":0.4,"sum":0.528,"cappedAt0_6":true}]}
+
+>>> RUNNING SCENARIO H (5-Minute Idle Drift Test)...
+Scenario H Result: PASS {"qChest_0s":["-0.0293","0.0033","-0.0033","0.9996"],"qChest_300s":["-0.0216","0.0029","-0.0040","0.9998"],"qHead_0s":["-0.1799","-0.0619","0.4843","-0.8540"],"qHead_300s":["-0.1779","-0.0678","0.4832","-0.8545"],"angularDifferenceChestDeg":0.882,"angularDifferenceHeadDeg":0.73,"pass":true}
+
+>>> RUNNING SCENARIO I (Background 5-Min Resume Delta Clamp)...
+Scenario I Result: PASS {"rawDeltaSeconds":300,"clampedDtSeconds":0.05,"pass":true}
+
+>>> RUNNING SCENARIO J (Model Swap & DeepDispose & Cache Invalidation)...
+Scenario J Result: PASS {"initialId":"be0ed9ba-96e5-4ef2-9171-ca81bec6822c","swappedId":"bd437d6c-4431-4bba-90c0-40fe40b921e4","restoredId":"e0054f08-7b7f-4f3a-9aa8-3a7fe4e06e37","isNewInstance":true,"cacheInvalidatedPerModel":true,"heapBeforeMb":45.87,"heapAfterMb":102.09,"pass":true}
+
+>>> RUNNING SCENARIO K (Expression & LookAt Filtering Stats)...
+(node:24744) UnhandledPromiseRejectionWarning: Error: Cannot read properties of undefined (reading 'tracks')
+(Use `electron --trace-warnings ...` to show where the warning was created)
+(node:24744) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing in
+side of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To term
+inate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://no
+dejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)

@@ -1,0 +1,53 @@
+﻿
+==================================================
+STARTING MASTER QA SUITE (A ~ L + PERF + INVARIANTS)
+==================================================
+
+>>> RUNNING SCENARIO A (10 Consecutive Turns)...
+Scenario A completed: true all 10 turns finished to idle!
+
+>>> RUNNING SCENARIO B (Short vs Long Speech)...
+Scenario B Result: {"shortPassed":true,"longPassed":true,"midGesture":"idle","lateGesture":"idle"}
+
+>>> RUNNING SCENARIO C (3 Message Interrupts)...
+Scenario C Result (Interrupts): true Final State: idle
+
+>>> RUNNING SCENARIO D (Fallback Latency Measurement)...
+Scenario D Result: {"delayMs":0.1,"fallbackGesture":"idle","convState":"speaking","pass":false}
+
+>>> RUNNING SCENARIO E (15 Gesture Executions)...
+Scenario E Result: true 15/15 runs valid!
+
+>>> RUNNING SCENARIO F (21 Korean Vowels Mapping Check)...
+Scenario F Result: {"pass":true,"missed":"?놁쓬"}
+
+>>> RUNNING SCENARIO G (Simultaneous Emotion + Viseme Weight Cap)...
+Scenario G Result: {"pass":true,"measurements":[{"emotion":"happy","emotionWeight":0.128,"aaWeight":0.4,"combinedMouthSum":0.528,"maxSingleWeight":0.4,"cappedAt0_6":true},{"emotion":"relaxed","emotionWeight":0.131,"aaWeight":0.4,"combinedMouthSum":0.531,"maxSingleWeight":0.4,"cappedAt0_6":true},{"emotion":"angry","emotionWeight":0.128,"aaWeight":0.4,"combinedMouthSum":0.528,"maxSingleWeight":0.4,"cappedAt0_6":true},{"emotion":"sad","emotionWeight":0.128,"aaWeight":0.4,"combinedMouthSum":0.528,"maxSingleWeight":0.4,"cappedAt0_6":true}]}
+
+>>> RUNNING SCENARIO H (5-Minute Idle Drift Test)...
+Scenario H Result: {"qChest_0s":["-0.0306","0.0033","-0.0033","0.9995"],"qChest_300s":["-0.0216","0.0029","-0.0040","0.9998"],"qHead_0s":["-0.8269","-0.3245","0.4278","-0.1670"],"qHead_300s":["-0.8279","-0.3272","0.4228","-0.1695"],"headAngleDegAt300s":"160.48","driftAccumulated":false,"pass":false}
+
+>>> RUNNING SCENARIO I (Background 5-Min Resume Delta Clamp)...
+Scenario I Result: {"rawDeltaSeconds":300,"clampedDtSeconds":0.05,"pass":true}
+
+>>> RUNNING SCENARIO J (Model Swap & DeepDispose & Cache Invalidation)...
+Scenario J Result: {"initialSceneUuid":"61228fc7-036c-469e-8164-1639712bd51f","newSceneUuid":"d8a78c75-6992-4b3c-a1e8-7b394fb1aca2","restoredSceneUuid":"a86c5a33-6317-47a9-a8c4-84ce3dc1a0f8","isNewInstance":true,"cacheInvalidatedPerModel":true,"heapBeforeMb":41.52,"heapAfterMb":104.89,"pass":true}
+
+>>> RUNNING SCENARIO K (Expression & LookAt Filtering)...
+electron.exe : (node:28308) UnhandledPromiseRejectionWarning: Error: Script failed to execute, this normally means an e
+rror was thrown. Check the renderer console for the error.
+위치 줄:1 문자:1
++ & "C:\TEST\MikuChat-v3\node_modules\electron\dist\electron.exe" "C:\T ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:28308) Un... for the error.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at node:electron/js2c/sandbox_bundle:2:127259
+    at IpcRendererInternal.<anonymous> (node:electron/js2c/sandbox_bundle:2:121504)
+    at IpcRendererInternal.emit (node:electron/js2c/sandbox_bundle:2:45997)
+    at Object.onMessage (node:electron/js2c/sandbox_bundle:2:119481)
+(Use `electron --trace-warnings ...` to show where the warning was created)
+(node:28308) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing in
+side of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To term
+inate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://no
+dejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)
