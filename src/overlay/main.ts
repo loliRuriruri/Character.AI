@@ -471,7 +471,11 @@ function updateModelVoiceLabels(): void {
 
   let voiceDesc = "";
   if (currentAppSettings.ttsProvider === "fish") {
-    voiceDesc = "🐟 Fish Audio (미쿠)";
+    const fid = (currentAppSettings.fishVoiceId || "").trim();
+    const fav = (currentAppSettings.fishFavorites || []).find((x) => x.id === fid);
+    const pre = FISH_VOICE_PRESETS.find((x) => x.id === fid);
+    const vName = fav ? fav.title : pre ? pre.name : fid ? `커스텀 (${fid.slice(0, 8)}…)` : "미쿠";
+    voiceDesc = `🐟 Fish Audio (${vName})`;
   } else if (currentAppSettings.ttsProvider === "irodori") {
     voiceDesc = "🇯🇵 Irodori (일본어)";
   } else if (currentAppSettings.ttsProvider === "web") {

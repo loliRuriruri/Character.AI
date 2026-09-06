@@ -1437,10 +1437,20 @@ function populateVoiceProfiles(profiles: CharacterVoiceProfile[], activeId?: str
 }
 
 function updateProfileFields(profile: CharacterVoiceProfile) {
-  if (profileKoEngine) profileKoEngine.value = profile.preferredEngine?.ko || "voxcpm";
-  if (profileKoRef) profileKoRef.value = profile.voxcpm?.koReferenceWav || profile.fish?.koReferenceId || "";
-  if (profileJaEngine) profileJaEngine.value = profile.preferredEngine?.ja || "fish";
-  if (profileJaRef) profileJaRef.value = profile.fish?.jaReferenceId || profile.voxcpm?.jaReferenceWav || "";
+  const koEng = profile.preferredEngine?.ko || "voxcpm";
+  const jaEng = profile.preferredEngine?.ja || "fish";
+  if (profileKoEngine) profileKoEngine.value = koEng;
+  if (profileKoRef) {
+    profileKoRef.value = koEng === "fish"
+      ? (profile.fish?.koReferenceId || localSettings?.fishVoiceId || "")
+      : (profile.voxcpm?.koReferenceWav || localSettings?.ttsVoiceId || "");
+  }
+  if (profileJaEngine) profileJaEngine.value = jaEng;
+  if (profileJaRef) {
+    profileJaRef.value = jaEng === "fish"
+      ? (profile.fish?.jaReferenceId || "6717a74323274cb296ea9a0da654c977")
+      : (profile.voxcpm?.jaReferenceWav || "");
+  }
   if (profileCloneMode) profileCloneMode.value = profile.voxcpm?.cloneMode || "reference";
 }
 
@@ -1468,9 +1478,17 @@ function syncCurrentProfileFromUi() {
   if (!p.fish) p.fish = {};
 
   if (koEng === "voxcpm" && koRef) p.voxcpm.koReferenceWav = koRef;
-  if (koEng === "fish" && koRef) p.fish.koReferenceId = koRef;
+  if (koEng === "fish" && koRef) {
+    if (!koRef.includes("/") && !koRef.includes("\\") && !koRef.endsWith(".wav")) {
+      p.fish.koReferenceId = koRef;
+    }
+  }
   if (jaEng === "voxcpm" && jaRef) p.voxcpm.jaReferenceWav = jaRef;
-  if (jaEng === "fish" && jaRef) p.fish.jaReferenceId = jaRef;
+  if (jaEng === "fish" && jaRef) {
+    if (!jaRef.includes("/") && !jaRef.includes("\\") && !jaRef.endsWith(".wav")) {
+      p.fish.jaReferenceId = jaRef;
+    }
+  }
   p.voxcpm.cloneMode = cloneMode;
 
   localSettings.voiceProfiles = list;
@@ -1492,7 +1510,17 @@ activeVoiceProfileSelect?.addEventListener("change", () => {
   window.miku.send(Ipc.SETTINGS_UPDATE, { activeVoiceProfileId: chosenId });
 });
 
-profileKoEngine?.addEventListener("change", syncCurrentProfileFromUi);
+profileKoEngine?.addEventListener("change", () => {
+  const koEng = profileKoEngine?.value || "voxcpm";
+  const list = localSettings?.voiceProfiles || [];
+  const current = list.find((p) => p.id === activeVoiceProfileSelect?.value);
+  if (profileKoRef && current) {
+    profileKoRef.value = koEng === "fish"
+      ? (current.fish?.koReferenceId || localSettings?.fishVoiceId || "")
+      : (current.voxcpm?.koReferenceWav || localSettings?.ttsVoiceId || "");
+  }
+  syncCurrentProfileFromUi();
+});
 profileKoRef?.addEventListener("change", syncCurrentProfileFromUi);
 profileJaEngine?.addEventListener("change", syncCurrentProfileFromUi);
 profileJaRef?.addEventListener("change", syncCurrentProfileFromUi);

@@ -1000,7 +1000,7 @@ function setupIpc(): void {
     characterWin.setIgnoreMouseEvents(Boolean(ignore), { forward: true });
   });
 
-  ipcMain.on(Ipc.PREVIEW_VOICE, (_ev, voiceId: unknown) => {
+  ipcMain.on(Ipc.PREVIEW_VOICE, (ev, voiceId: unknown) => {
     const id = typeof voiceId === "string" && voiceId.trim() ? voiceId.trim() : settings.ttsVoiceId;
     const v = voiceById(id);
     if (!v) return;
@@ -1008,12 +1008,10 @@ function setupIpc(): void {
     if (fs.existsSync(wavPath)) {
       try {
         const buf = fs.readFileSync(wavPath);
-        if (settingsWin && !settingsWin.isDestroyed()) {
-          settingsWin.webContents.send(Ipc.PLAY_PREVIEW_AUDIO, {
-            b64: buf.toString("base64"),
-            name: v.displayName || v.id,
-          });
-        }
+        ev.sender.send(Ipc.PLAY_PREVIEW_AUDIO, {
+          b64: buf.toString("base64"),
+          name: v.displayName || v.id,
+        });
       } catch (err) {
         console.warn("Preview audio read error:", err);
       }
@@ -1343,6 +1341,27 @@ function setupIpc(): void {
     const prevModel = settings.vrmModelPath;
 
     settings = { ...settings, ...(next as Partial<AppSettings>) };
+    const patch = next as Partial<AppSettings>;
+
+    // Keep active profile in sync with direct engine / voice quick selection
+    const activeProfile = (settings.voiceProfiles || []).find((p) => p.id === settings.activeVoiceProfileId);
+    if (activeProfile) {
+      if (patch.ttsProvider) {
+        if (!activeProfile.preferredEngine) activeProfile.preferredEngine = {};
+        activeProfile.preferredEngine.default = patch.ttsProvider;
+        activeProfile.preferredEngine.ko = patch.ttsProvider;
+      }
+      if (patch.fishVoiceId) {
+        if (!activeProfile.fish) activeProfile.fish = {};
+        activeProfile.fish.referenceId = patch.fishVoiceId;
+        activeProfile.fish.koReferenceId = patch.fishVoiceId;
+      }
+      if (patch.ttsVoiceId) {
+        if (!activeProfile.voxcpm) activeProfile.voxcpm = {};
+        activeProfile.voxcpm.koReferenceWav = patch.ttsVoiceId;
+        activeProfile.voxcpm.defaultReferenceWav = resolveVoiceWav(patch.ttsVoiceId);
+      }
+    }
 
     if (settings.ttsVoiceId !== prevVoice) {
       const applied = applyVoiceSelection(settings.ttsVoiceId);

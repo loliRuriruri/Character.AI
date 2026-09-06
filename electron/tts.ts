@@ -582,6 +582,16 @@ export function detectLanguage(text: string): DetectedLanguage {
   return "other";
 }
 
+export function isValidFishVoiceId(id?: string): boolean {
+  if (!id) return false;
+  const trimmed = id.trim();
+  if (!trimmed) return false;
+  if (trimmed.includes("/") || trimmed.includes("\\") || trimmed.endsWith(".wav") || trimmed.endsWith(".mp3")) {
+    return false;
+  }
+  return /^[A-Za-z0-9_-]{16,64}$/.test(trimmed);
+}
+
 export function resolveVoiceProfileConfig(
   profile: CharacterVoiceProfile | undefined,
   text: string,
@@ -648,14 +658,18 @@ export function resolveVoiceProfileConfig(
         effective.voxcpmPromptText = catVoice.promptText;
       }
     }
-  } else if (engine === "fish" && profile.fish) {
-    if (detectedLang === "ko" && profile.fish.koReferenceId) {
-      effective.fishVoiceId = profile.fish.koReferenceId;
-    } else if (detectedLang === "ja" && profile.fish.jaReferenceId) {
-      effective.fishVoiceId = profile.fish.jaReferenceId;
-    } else if (profile.fish.referenceId) {
-      effective.fishVoiceId = profile.fish.referenceId;
+  } else if (engine === "fish") {
+    let fishId = baseSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
+    if (profile.fish) {
+      if (detectedLang === "ko" && isValidFishVoiceId(profile.fish.koReferenceId)) {
+        fishId = profile.fish.koReferenceId!;
+      } else if (detectedLang === "ja" && isValidFishVoiceId(profile.fish.jaReferenceId)) {
+        fishId = profile.fish.jaReferenceId!;
+      } else if (isValidFishVoiceId(profile.fish.referenceId)) {
+        fishId = profile.fish.referenceId!;
+      }
     }
+    effective.fishVoiceId = fishId;
   } else if (engine === "irodori" && profile.irodori) {
     if (profile.irodori.loraId) {
       effective.irodoriLoraId = profile.irodori.loraId;
