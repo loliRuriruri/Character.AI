@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppSettings, TtsStatus } from "../src/shared/types";
+import { sanitizeSpeechForTts } from "../src/core/response/TtsSanitizer";
 import { resolveVoiceWav } from "./voices";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -459,8 +460,8 @@ export class FishAudioTts {
   constructor(private readonly onStatus: (s: TtsStatus) => void) {}
 
   async speak(settings: AppSettings, text: string): Promise<TtsPlay> {
-    const spoken = text.trim();
-    if (!spoken) return { kind: "none" };
+    const rawSpoken = text.trim();
+    if (!rawSpoken) return { kind: "none" };
 
     const apiKey = (settings.fishApiKey || "").trim();
     if (!apiKey) {
@@ -468,12 +469,21 @@ export class FishAudioTts {
       if (settings.ttsWebFallback) {
         return {
           kind: "web",
-          text: spoken,
+          text: rawSpoken,
           fallback: true,
           reason: "Fish Audio API 키가 비어있습니다. 환경설정(⚙️)에서 fish.audio API 키를 입력해주세요.",
         };
       }
       return { kind: "none" };
+    }
+
+    // Defensive speech sanitization: strip any emoji/pictograph byte sequences that trigger Chinese token flips
+    let cleanSpoken = sanitizeSpeechForTts(rawSpoken);
+    if (!cleanSpoken) return { kind: "none" };
+
+    // Guaranteed terminal sentence punctuation to force clean model EOS and eliminate trailing sighs/groans
+    if (!/[.!?~…\u3002\uFF01\uFF1F]$/.test(cleanSpoken)) {
+      cleanSpoken += /[\u3040-\u30ff\u4e00-\u9faf]$/.test(cleanSpoken) ? "。" : ".";
     }
 
     this.onStatus("synthesizing");
@@ -490,11 +500,15 @@ export class FishAudioTts {
           "accept": "audio/wav",
         },
         body: JSON.stringify({
-          text: spoken,
+          text: cleanSpoken,
           reference_id: voiceId,
           format: "wav",
           latency,
           normalize: true,
+          temperature: 0.5,
+          top_p: 0.7,
+          repetition_penalty: 1.2,
+          max_new_tokens: 1024,
         }),
       });
 
@@ -509,7 +523,7 @@ export class FishAudioTts {
         throw new Error("Fish Audio 응답 데이터가 비어있습니다.");
       }
 
-      let duration = Math.max(0.6, spoken.length * 0.1);
+      let duration = Math.max(0.6, cleanSpoken.length * 0.1);
       if (buf.length >= 44 && buf.toString("ascii", 0, 4) === "RIFF") {
         const byteRate = buf.readUInt32LE(28);
         const dataLen = buf.length - 44;
@@ -521,13 +535,13 @@ export class FishAudioTts {
       return {
         kind: "wav",
         b64: buf.toString("base64"),
-        text: spoken,
+        text: cleanSpoken,
         duration: Math.max(0.5, duration),
       };
     } catch (err: any) {
       console.warn("Fish Audio TTS failed:", err);
       if (settings.ttsWebFallback) {
-        return { kind: "web", text: spoken, fallback: true, reason: err.message };
+        return { kind: "web", text: cleanSpoken || rawSpoken, fallback: true, reason: err.message };
       }
       throw err;
     }

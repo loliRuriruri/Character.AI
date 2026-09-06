@@ -11,6 +11,7 @@ import { testAudioStopRace } from "./audio-stop-race.test";
 import { testAudioQueueCadence } from "./audio-queue-cadence.test";
 import { testMotionDirectorClamp } from "./motion-director-clamp.test";
 import { testLipSyncBridge } from "./lipsync-bridge.test";
+import { testAudioTailTrimmer } from "./audio-tail-trimmer.test";
 
 console.log("==================================================");
 console.log("       MikuChat-v3 Formal Test Suite Runner       ");
@@ -30,6 +31,7 @@ const suites = [
   { name: "Audio Queue & 280ms Cadence Overlap", fn: testAudioQueueCadence },
   { name: "MotionDirector Clamp & Mocap Binding", fn: testMotionDirectorClamp },
   { name: "LipSync Bridge & Mouth Arbitration", fn: testLipSyncBridge },
+  { name: "Audio Tail Trimmer (Anti-Scream/Groan Failsafe)", fn: testAudioTailTrimmer },
 ];
 
 let passed = 0;

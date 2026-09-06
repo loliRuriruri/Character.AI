@@ -89,6 +89,82 @@ export function computeMouthOpen(
   return Math.pow(Math.min(Math.max(normalized, 0), 1), curveExp);
 }
 
+/**
+ * Trims trailing audio hallucinations (screams/sighs/groans) or trailing silence.
+ * Detects if an abnormal silence gap (>= 280ms) precedes trailing bursts, or trims excessive silence.
+ */
+export function trimTrailingArtifacts(
+  channelData: Float32Array,
+  sampleRate: number
+): Float32Array {
+  const windowSize = Math.floor(sampleRate * 0.02); // 20ms window
+  const hopSize = Math.floor(sampleRate * 0.01); // 10ms hop
+  const numFrames = Math.floor((channelData.length - windowSize) / hopSize);
+  if (numFrames <= 0) return channelData;
+
+  const rmsValues: number[] = new Array(numFrames);
+  let peakRms = 0;
+  for (let i = 0; i < numFrames; i++) {
+    const offset = i * hopSize;
+    let sumSq = 0;
+    for (let j = 0; j < windowSize; j++) {
+      const s = channelData[offset + j];
+      sumSq += s * s;
+    }
+    const rms = Math.sqrt(sumSq / windowSize);
+    rmsValues[i] = rms;
+    if (rms > peakRms) peakRms = rms;
+  }
+
+  if (peakRms < 0.01) return channelData; // Near silence
+
+  const silenceThreshold = 0.005; // -46dB
+  const gapFramesRequired = Math.floor(0.28 / 0.01); // 280ms gap
+
+  let lastActiveFrame = numFrames - 1;
+  while (lastActiveFrame >= 0 && rmsValues[lastActiveFrame] < silenceThreshold) {
+    lastActiveFrame--;
+  }
+
+  if (lastActiveFrame < 0) return channelData;
+
+  // Scan backwards from lastActiveFrame to detect hallucinated bursts after a silence gap
+  let silentGapCount = 0;
+  let cutFrame = lastActiveFrame;
+
+  for (let i = lastActiveFrame; i >= 0; i--) {
+    if (rmsValues[i] < silenceThreshold) {
+      silentGapCount++;
+      if (silentGapCount >= gapFramesRequired) {
+        cutFrame = i;
+        while (i >= 0 && rmsValues[i] < silenceThreshold) {
+          cutFrame = i;
+          i--;
+        }
+        break;
+      }
+    } else {
+      silentGapCount = 0;
+    }
+  }
+
+  const paddingSamples = Math.floor(sampleRate * 0.08); // 80ms natural decay
+  const fadeSamples = Math.floor(sampleRate * 0.02); // 20ms linear fade out
+  const cutSample = Math.min(channelData.length, cutFrame * hopSize + paddingSamples + fadeSamples);
+
+  if (cutSample >= channelData.length) return channelData;
+
+  const trimmed = new Float32Array(cutSample);
+  trimmed.set(channelData.subarray(0, cutSample));
+  const fadeStart = cutSample - fadeSamples;
+  for (let i = 0; i < fadeSamples; i++) {
+    const idx = fadeStart + i;
+    trimmed[idx] *= (1 - (i / fadeSamples));
+  }
+
+  return trimmed;
+}
+
 export class AudioContextPlayer {
   private context: AudioContext | null = null;
   private currentSource: AudioBufferSourceNode | null = null;
@@ -231,8 +307,29 @@ export class AudioContextPlayer {
 
     // 4. Decode audio data
     const decodeStartedAt = Date.now();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    const rawAudioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
     const decodeCompletedAt = Date.now();
+
+    // Cleanly trim any trailing autoregressive hallucinations (groans/screams) or dead air
+    let audioBuffer = rawAudioBuffer;
+    if (rawAudioBuffer.length > ctx.sampleRate * 0.3) {
+      const channel0 = rawAudioBuffer.getChannelData(0);
+      const trimmed0 = trimTrailingArtifacts(channel0, rawAudioBuffer.sampleRate);
+      if (trimmed0.length < rawAudioBuffer.length) {
+        const newBuf = ctx.createBuffer(
+          rawAudioBuffer.numberOfChannels,
+          trimmed0.length,
+          rawAudioBuffer.sampleRate
+        );
+        newBuf.getChannelData(0).set(trimmed0);
+        for (let ch = 1; ch < rawAudioBuffer.numberOfChannels; ch++) {
+          const chData = rawAudioBuffer.getChannelData(ch);
+          const trimmedCh = trimTrailingArtifacts(chData, rawAudioBuffer.sampleRate);
+          newBuf.getChannelData(ch).set(trimmedCh.subarray(0, trimmed0.length));
+        }
+        audioBuffer = newBuf;
+      }
+    }
 
     // 5. Build playback identity token
     this.playbackCounter++;

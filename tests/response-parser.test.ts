@@ -82,5 +82,51 @@ export function testResponseParser() {
     assert(clean.includes("Miku's"));
   }
 
+  // 6. Emoji & Decorative Symbol Stripping (Prevents Fish Audio Chinese Speech Hallucination)
+  {
+    const text1 = "아! 일본어 퀴즈요청해 주신 마스터! 🎯";
+    const clean1 = sanitizeSpeechForTts(text1);
+    assert.strictEqual(clean1, "아! 일본어 퀴즈요청해 주신 마스터!");
+    assert(!clean1.includes("🎯"));
+
+    const text2 = '질문: "The cat is sleeping on the mat." 이 문장을 일본어로 어떻게 번역할까요? 😊';
+    const clean2 = sanitizeSpeechForTts(text2);
+    assert(!clean2.includes("😊"));
+    assert(!clean2.includes('"'));
+    assert.strictEqual(clean2, "질문: The cat is sleeping on the mat. 이 문장을 일본어로 어떻게 번역할까요?");
+
+    const text3 = "★ 미쿠의 추천! ✨ 오늘은 즐거운 날이야~ 🌸 🎯 🐱 👍";
+    const clean3 = sanitizeSpeechForTts(text3);
+    assert.strictEqual(clean3, "미쿠의 추천! 오늘은 즐거운 날이야~");
+  }
+
+  // 7. Quiz Choice & Numbered Option Normalization
+  {
+    const choices = "A) 猫はベッドで寝ています。\nB) 猫はマット";
+    const cleanChoices = sanitizeSpeechForTts(choices);
+    assert(cleanChoices.includes("A번,"));
+    assert(cleanChoices.includes("B번,"));
+    // Must end with clean terminal punctuation for EOS
+    assert(cleanChoices.endsWith("。") || cleanChoices.endsWith("."));
+
+    const numbered = "1. 사과\n2. 바나나\n3. 포도";
+    const cleanNum = sanitizeSpeechForTts(numbered);
+    assert(cleanNum.includes("1번, 사과"));
+    assert(cleanNum.includes("2번, 바나나"));
+    assert(cleanNum.includes("3번, 포도"));
+  }
+
+  // 8. Terminal Punctuation Guarantee (Prevents Autoregressive Tail Hallucination / Screams / Groans)
+  {
+    const noPunctKo = "안녕하세요 마스터";
+    assert.strictEqual(sanitizeSpeechForTts(noPunctKo), "안녕하세요 마스터.");
+
+    const noPunctJa = "こんにちは、マスター";
+    assert.strictEqual(sanitizeSpeechForTts(noPunctJa), "こんにちは、マスター。");
+
+    const alreadyPunct = "기다려줘!";
+    assert.strictEqual(sanitizeSpeechForTts(alreadyPunct), "기다려줘!");
+  }
+
   console.log("   ✓ ResponseParser tests passed.");
 }
