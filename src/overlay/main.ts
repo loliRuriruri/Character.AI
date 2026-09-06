@@ -716,10 +716,17 @@ function escapeHtml(str: string): string {
 function renderBubbleHtml(text: string): string {
   // Strip internal reasoning / thinking tags (<think>...</think> or unclosed <think>...)
   const withoutThinking = text.replace(/<(?:think|thought)>[\s\S]*?(?:<\/(?:think|thought)>|$)/gi, "");
-  const clean = stripEmotionTags(withoutThinking);
+  // Clean markdown headings (#, ##, ###) at start of lines so bubble text doesn't show ugly hash marks
+  const withoutHeadings = withoutThinking.replace(/^[#]+\s*/gm, "");
+  const clean = stripEmotionTags(withoutHeadings);
   const formatted = formatChatText(clean);
   const escaped = escapeHtml(formatted);
-  return escaped.replace(/\*([^*]+)\*/g, '<span class="action-prose">*$1*</span>');
+  return escaped.replace(/\*([^*]+)\*/g, (match, p1) => {
+    const trimmed = p1.trim();
+    if (trimmed.length < 2) return match;
+    if (/^[은는이가을를과의와도에서로으로]$/.test(trimmed)) return match;
+    return `<span class="action-prose">*${p1}*</span>`;
+  });
 }
 
 function appendBubble(role: "user" | "assistant", text: string): HTMLDivElement {

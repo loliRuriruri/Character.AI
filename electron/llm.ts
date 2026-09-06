@@ -129,7 +129,7 @@ async function completeOllama(opts: {
     messages: formattedMessages,
     stream: true,
     options: {
-      num_predict: targetModel.toLowerCase().includes("heretic") ? 500 : 220,
+      num_predict: opts.imageBase64 ? 350 : 220,
       num_ctx: 4096,
       temperature: 0.7,
       top_p: 0.9,
@@ -142,7 +142,7 @@ async function completeOllama(opts: {
     messages: formattedMessages,
     stream: false,
     options: {
-      num_predict: targetModel.toLowerCase().includes("heretic") ? 500 : 220,
+      num_predict: opts.imageBase64 ? 350 : 220,
       num_ctx: 4096,
       temperature: 0.7,
       top_p: 0.9,
