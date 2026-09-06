@@ -57,6 +57,8 @@ export const Ipc = {
   QUIT_APP: "quit-app",
   OPEN_EXTERNAL_URL: "open-external-url",
   RECHECK_PROVIDER: "recheck-provider",
+  DOWNLOAD_VOICE_SET: "download-voice-set",
+  OPEN_DOWNLOADS_FOLDER: "open-downloads-folder",
 } as const;
 
 export type IpcChannel = (typeof Ipc)[keyof typeof Ipc];

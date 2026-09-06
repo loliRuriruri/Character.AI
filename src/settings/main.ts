@@ -159,45 +159,68 @@ root.innerHTML = `
             <button type="button" class="btn-fish-preset" data-id="6717a74323274cb296ea9a0da654c977" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">미쿠 (일본어)</button>
           </div>
 
-          <!-- 🔥 전 세계 인기 보이스 랭킹 (장르별 & 국적별 좋아요 순) & 실시간 검색 -->
+          <!-- 🔥 전 세계 인기 보이스 랭킹 (장르별 & 국적별 좋아요/다운로드 순) & 실시간 검색 -->
           <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(0,210,255,0.2);">
             <div style="font-size:10.5px; font-weight:700; color:#00d2ff; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-              <span>🔥 인기 보이스 랭킹 (좋아요 순) & 캐릭터 검색</span>
-              <button id="btn-open-fish-models" type="button" style="background:transparent; border:none; color:#8aa8b0; font-size:9.5px; cursor:pointer; text-decoration:underline;">웹 라이브러리 둘러보기 ↗</button>
+              <span>🔥 인기 보이스 랭킹 & 캐릭터 탐색</span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button id="btn-open-downloads-folder" type="button" style="background:transparent; border:none; color:#ffd700; font-size:9.5px; cursor:pointer; text-decoration:underline;" title="내 PC 다운로드 폴더 열기">📂 다운로드 보관함 ↗</button>
+                <button id="btn-open-fish-models" type="button" style="background:transparent; border:none; color:#8aa8b0; font-size:9.5px; cursor:pointer; text-decoration:underline;">웹 라이브러리 ↗</button>
+              </div>
             </div>
 
-            <!-- 장르 & 국적 필터 바 -->
-            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
-              <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
-                <span style="font-size:9.5px; color:#8aa8b0;">장르 (Genre)</span>
-                <select id="fish-filter-genre" style="width:100%; font-size:10px; padding:3px 5px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
-                  <option value="anime">📺 애니메이션 (Anime)</option>
+            <!-- 장르 & 국적 & 정렬 필터 바 -->
+            <div style="display:flex; gap:4px; align-items:center; margin-bottom:5px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:85px; display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:9px; color:#8aa8b0;">장르 (Genre)</span>
+                <select id="fish-filter-genre" style="width:100%; font-size:10px; padding:2px 4px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
                   <option value="gaming">🎮 게임 (Gaming)</option>
-                  <option value="character-voice">🎭 캐릭터/버튜버 (Character)</option>
+                  <option value="anime">📺 애니 (Anime)</option>
+                  <option value="character-voice">🎭 캐릭터/버튜버</option>
                   <option value="all">🌐 전체 장르 (All)</option>
                 </select>
               </div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
-                <span style="font-size:9.5px; color:#8aa8b0;">국적/언어 (Language)</span>
-                <select id="fish-filter-lang" style="width:100%; font-size:10px; padding:3px 5px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
-                  <option value="ja">🇯🇵 일본 (Japanese)</option>
-                  <option value="ko">🇰🇷 한국 (Korean)</option>
+              <div style="flex:1; min-width:85px; display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:9px; color:#8aa8b0;">국적/언어 (Language)</span>
+                <select id="fish-filter-lang" style="width:100%; font-size:10px; padding:2px 4px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
+                  <option value="ko">🇰🇷 한국어 (Korean)</option>
+                  <option value="ja">🇯🇵 일본어 (Japanese)</option>
                   <option value="en">🇺🇸 영어 (English)</option>
-                  <option value="zh">🇨🇳 중국 (Chinese)</option>
+                  <option value="zh">🇨🇳 중국어 (Chinese)</option>
                   <option value="all">🌐 전 세계 (All)</option>
                 </select>
               </div>
-              <button id="btn-fetch-ranking" type="button" style="margin-top:14px; background:#00d2ff; color:#06141d; font-weight:800; padding:4px 10px; border-radius:6px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">🔥 랭킹 조회</button>
+              <div style="flex:1; min-width:100px; display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:9px; color:#8aa8b0;">정렬 (Sort by)</span>
+                <select id="fish-filter-sort" style="width:100%; font-size:10px; padding:2px 4px; background:rgba(0,0,0,0.4); color:#ffd700; border:1px solid rgba(255,215,0,0.4); border-radius:4px;">
+                  <option value="likes">❤️ 좋아요 많은 순</option>
+                  <option value="downloads">📥 다운로드/사용 많은 순</option>
+                </select>
+              </div>
+              <div style="display:flex; gap:3px; margin-top:13px;">
+                <button id="btn-fetch-ranking" type="button" style="background:#00d2ff; color:#06141d; font-weight:800; padding:3px 8px; border-radius:5px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">🔥 조회</button>
+                <button id="btn-refresh-ranking" type="button" title="목록 새로고침" style="background:rgba(255,255,255,0.12); color:#e8fbff; font-weight:700; padding:3px 6px; border-radius:5px; font-size:10.5px; border:1px solid rgba(255,255,255,0.25); cursor:pointer;">🔄</button>
+              </div>
             </div>
 
             <!-- 직접 검색 입력창 -->
-            <div style="display:flex; gap:4px; margin-bottom:6px;">
-              <input id="fish-search-input" placeholder="원하는 캐릭터 영문 직접 검색 (예: Furina, Hayami, Gojo...)" style="flex:1; font-size:10px; padding:4px 8px;" />
-              <button id="btn-fish-search" type="button" class="btn-file" style="background:#39c5bb; color:#06141d; font-weight:800; padding:4px 10px; border-radius:6px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">검색</button>
+            <div style="display:flex; gap:4px; margin-bottom:5px;">
+              <input id="fish-search-input" placeholder="원하는 캐릭터 영문 직접 검색 (예: Furina, Hayami, Gojo...)" style="flex:1; font-size:10px; padding:3px 8px;" />
+              <button id="btn-fish-search" type="button" class="btn-file" style="background:#39c5bb; color:#06141d; font-weight:800; padding:3px 8px; border-radius:5px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">검색</button>
             </div>
 
-            <div id="fish-search-results" style="display:flex; max-height:165px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;">
-              <span style="color:#8aa8b0; font-size:10px; padding:6px 0; text-align:center;">상단 [🔥 랭킹 조회]를 누르면 선택한 장르와 국적의 좋아요 1위 순위가 표시됩니다.</span>
+            <!-- 결과 카운트 및 정렬 안내 -->
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:9.5px; color:#8aa8b0; margin-bottom:3px; padding:0 2px;">
+              <span id="fish-results-count">조회 결과: 0개</span>
+              <span id="fish-sort-label" style="color:#00d2ff;">정렬: ❤️ 좋아요 많은 순</span>
+            </div>
+
+            <div id="fish-search-results" style="display:flex; max-height:220px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;">
+              <span style="color:#8aa8b0; font-size:10px; padding:8px 0; text-align:center;">상단 [🔥 조회] 또는 [🔄]를 누르면 실시간 랭킹 순위가 로드됩니다.</span>
+            </div>
+
+            <div id="fish-load-more-container" style="display:none; margin-top:5px; text-align:center;">
+              <button id="btn-fish-load-more" type="button" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff; font-size:10.5px; font-weight:700; border-radius:6px; padding:4px 12px; cursor:pointer; width:100%;">➕ 다음 30개 더 불러오기</button>
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
@@ -443,12 +466,23 @@ const fishSearchInput = document.getElementById("fish-search-input") as HTMLInpu
 const btnFishSearch = document.getElementById("btn-fish-search") as HTMLButtonElement;
 const fishSearchResults = document.getElementById("fish-search-results") as HTMLDivElement;
 const btnOpenFishModels = document.getElementById("btn-open-fish-models") as HTMLButtonElement;
+const btnOpenDownloadsFolder = document.getElementById("btn-open-downloads-folder") as HTMLButtonElement;
 const btnFetchRanking = document.getElementById("btn-fetch-ranking") as HTMLButtonElement;
+const btnRefreshRanking = document.getElementById("btn-refresh-ranking") as HTMLButtonElement;
 const fishFilterGenre = document.getElementById("fish-filter-genre") as HTMLSelectElement;
 const fishFilterLang = document.getElementById("fish-filter-lang") as HTMLSelectElement;
+const fishFilterSort = document.getElementById("fish-filter-sort") as HTMLSelectElement;
 const btnAddCurrentFav = document.getElementById("btn-add-current-fav") as HTMLButtonElement;
+const fishResultsCount = document.getElementById("fish-results-count") as HTMLSpanElement;
+const fishSortLabel = document.getElementById("fish-sort-label") as HTMLSpanElement;
+const fishLoadMoreContainer = document.getElementById("fish-load-more-container") as HTMLDivElement;
+const btnFishLoadMore = document.getElementById("btn-fish-load-more") as HTMLButtonElement;
 
 let currentFavorites: FishVoiceFavorite[] = [];
+let currentRankingPage = 1;
+let currentLoadedCount = 0;
+let lastQueryType: "ranking" | "search" = "ranking";
+let lastSearchText = "";
 
 function loadFavorites(fromSettings?: FishVoiceFavorite[]) {
   if (fromSettings && Array.isArray(fromSettings)) {
@@ -544,6 +578,23 @@ function updateCardFavoriteButtons() {
   });
 }
 
+function getGenreBadge(tags: string[] = []): string {
+  const t = tags.map((x) => x.toLowerCase());
+  if (t.includes("gaming") || t.includes("game") || t.includes("games")) {
+    return `<span style="background:rgba(0,210,255,0.22); color:#7ae7ff; border:1px solid rgba(0,210,255,0.45); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">🎮 게임</span>`;
+  }
+  if (t.includes("anime") || t.includes("animation")) {
+    return `<span style="background:rgba(180,100,255,0.22); color:#d4a8ff; border:1px solid rgba(180,100,255,0.45); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">📺 애니</span>`;
+  }
+  if (t.includes("vocaloid") || t.includes("hatsune miku")) {
+    return `<span style="background:rgba(57,197,187,0.22); color:#39c5bb; border:1px solid rgba(57,197,187,0.45); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">🎵 보컬</span>`;
+  }
+  if (t.includes("character-voice") || t.includes("vtuber")) {
+    return `<span style="background:rgba(255,215,0,0.18); color:#ffd700; border:1px solid rgba(255,215,0,0.35); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">🎭 캐릭터</span>`;
+  }
+  return `<span style="background:rgba(255,255,255,0.08); color:#a0b0b8; border:1px solid rgba(255,255,255,0.15); border-radius:3px; padding:1px 4px; font-size:8.5px; margin-right:3px;">🎙️ 보이스</span>`;
+}
+
 btnAddCurrentFav?.addEventListener("click", () => {
   const id = fishVoiceIdInput?.value.trim();
   if (!id) {
@@ -566,55 +617,163 @@ btnOpenFishModels?.addEventListener("click", () => {
   window.miku.send(Ipc.OPEN_EXTERNAL_URL, "https://fish.audio/models/");
 });
 
-function triggerRankingQuery() {
-  const tag = fishFilterGenre?.value || "anime";
-  const language = fishFilterLang?.value || "ja";
-  if (fishSearchResults) {
-    fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:6px 0; text-align:center;">🔥 좋아요 1위 순위 데이터 불러오는 중…</span>';
-  }
-  window.miku.send(Ipc.SEARCH_FISH_MODELS, { tag, language, pageSize: 16 });
-}
-
-btnFetchRanking?.addEventListener("click", triggerRankingQuery);
-fishFilterGenre?.addEventListener("change", triggerRankingQuery);
-fishFilterLang?.addEventListener("change", triggerRankingQuery);
-
-btnFishSearch?.addEventListener("click", () => {
-  const q = fishSearchInput?.value.trim();
-  if (!q) return;
-  if (fishSearchResults) {
-    fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:6px 0; text-align:center;">🔍 Fish Audio 라이브러리 검색 중…</span>';
-  }
-  window.miku.send(Ipc.SEARCH_FISH_MODELS, q);
+btnOpenDownloadsFolder?.addEventListener("click", () => {
+  window.miku.send(Ipc.OPEN_DOWNLOADS_FOLDER);
 });
 
+function triggerRankingQuery(pageNumber = 1, append = false) {
+  currentRankingPage = pageNumber;
+  lastQueryType = "ranking";
+  const tag = fishFilterGenre?.value || "gaming";
+  const language = fishFilterLang?.value || "ko";
+  const sortBy = (fishFilterSort?.value as "likes" | "downloads") || "likes";
+
+  if (!append) {
+    currentLoadedCount = 0;
+    if (fishSearchResults) {
+      fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:8px 0; text-align:center;">🔥 순위 데이터를 실시간으로 불러오는 중…</span>';
+    }
+    if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
+  } else {
+    if (btnFishLoadMore) {
+      btnFishLoadMore.textContent = "⏳ 불러오는 중…";
+      btnFishLoadMore.disabled = true;
+    }
+  }
+
+  if (fishSortLabel) {
+    fishSortLabel.textContent = sortBy === "downloads" ? "정렬: 📥 다운로드/사용 많은 순" : "정렬: ❤️ 좋아요 많은 순";
+  }
+
+  window.miku.send(Ipc.SEARCH_FISH_MODELS, { tag, language, sortBy, pageNumber, pageSize: 30, append });
+}
+
+function triggerSearchQuery(pageNumber = 1, append = false) {
+  const q = fishSearchInput?.value.trim() || lastSearchText;
+  if (!q) return;
+  lastSearchText = q;
+  lastQueryType = "search";
+  currentRankingPage = pageNumber;
+  const sortBy = (fishFilterSort?.value as "likes" | "downloads") || "likes";
+
+  if (!append) {
+    currentLoadedCount = 0;
+    if (fishSearchResults) {
+      fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:8px 0; text-align:center;">🔍 검색 결과를 불러오는 중…</span>';
+    }
+    if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
+  } else {
+    if (btnFishLoadMore) {
+      btnFishLoadMore.textContent = "⏳ 불러오는 중…";
+      btnFishLoadMore.disabled = true;
+    }
+  }
+
+  window.miku.send(Ipc.SEARCH_FISH_MODELS, { title: q, sortBy, pageNumber, pageSize: 30, append });
+}
+
+btnFetchRanking?.addEventListener("click", () => triggerRankingQuery(1, false));
+btnRefreshRanking?.addEventListener("click", () => {
+  if (lastQueryType === "search" && lastSearchText) {
+    triggerSearchQuery(1, false);
+  } else {
+    triggerRankingQuery(1, false);
+  }
+});
+fishFilterGenre?.addEventListener("change", () => triggerRankingQuery(1, false));
+fishFilterLang?.addEventListener("change", () => triggerRankingQuery(1, false));
+fishFilterSort?.addEventListener("change", () => {
+  if (lastQueryType === "search" && lastSearchText) {
+    triggerSearchQuery(1, false);
+  } else {
+    triggerRankingQuery(1, false);
+  }
+});
+
+btnFishLoadMore?.addEventListener("click", () => {
+  if (lastQueryType === "search") {
+    triggerSearchQuery(currentRankingPage + 1, true);
+  } else {
+    triggerRankingQuery(currentRankingPage + 1, true);
+  }
+});
+
+btnFishSearch?.addEventListener("click", () => triggerSearchQuery(1, false));
 fishSearchInput?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
-    btnFishSearch?.click();
+    triggerSearchQuery(1, false);
   }
 });
 
 window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
-  const r = res as { ok: boolean; items?: any[]; error?: string };
+  const r = res as {
+    ok: boolean;
+    items?: any[];
+    error?: string;
+    total?: number;
+    pageNumber?: number;
+    pageSize?: number;
+    append?: boolean;
+    hasMore?: boolean;
+    sortBy?: string;
+  };
   if (!fishSearchResults) return;
+
+  if (btnFishLoadMore) {
+    btnFishLoadMore.disabled = false;
+    btnFishLoadMore.textContent = "➕ 다음 30개 더 불러오기";
+  }
+
   if (!r || !r.ok || !r.items || r.items.length === 0) {
-    fishSearchResults.innerHTML = '<span style="color:#8aa8b0; font-size:10.5px; padding:6px 0; text-align:center;">검색/랭킹 결과가 없습니다. 다른 조건으로 검색해보세요.</span>';
+    if (!r?.append) {
+      fishSearchResults.innerHTML = '<span style="color:#8aa8b0; font-size:10.5px; padding:8px 0; text-align:center;">검색/랭킹 결과가 없습니다. 다른 조건으로 검색해보세요.</span>';
+      if (fishResultsCount) fishResultsCount.textContent = "조회 결과: 0개";
+      if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
+    } else {
+      if (btnFishLoadMore) {
+        btnFishLoadMore.textContent = "✓ 모든 음성을 불러왔습니다";
+        btnFishLoadMore.disabled = true;
+      }
+    }
     return;
   }
 
-  fishSearchResults.innerHTML = "";
+  if (!r.append) {
+    fishSearchResults.innerHTML = "";
+    currentLoadedCount = r.items.length;
+  } else {
+    currentLoadedCount += r.items.length;
+  }
+
+  if (fishResultsCount) {
+    const totalStr = r.total ? ` (전체 약 ${r.total.toLocaleString()}개)` : "";
+    fishResultsCount.textContent = `조회 결과: ${currentLoadedCount}개${totalStr}`;
+  }
+
   r.items.forEach((item) => {
     const card = document.createElement("div");
     card.className = "fish-card";
     card.dataset.id = item._id;
     card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:5px 8px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,210,255,0.25); border-radius:6px; font-size:10.5px;";
-    
+
     const info = document.createElement("div");
     info.style.cssText = "overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:6px;";
     const likesFormatted = (item.like_count || 0).toLocaleString();
-    info.innerHTML = `<span style="font-weight:700; color:#e8fbff;">${item.title}</span> <span style="color:#8aa8b0; font-size:9.5px;">[${(item.languages || []).join(",")}]</span> <span style="color:#ff6b8b; font-weight:700; font-size:9.5px;">❤️ ${likesFormatted}</span>`;
-    
+    const tasksFormatted = (item.task_count || 0).toLocaleString();
+
+    info.innerHTML = `
+      <div style="display:flex; align-items:center; gap:3px;">
+        ${getGenreBadge(item.tags)}
+        <span style="font-weight:700; color:#e8fbff; max-width:125px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title}</span>
+        <span style="color:#8aa8b0; font-size:9px;">[${(item.languages || []).join(",")}]</span>
+      </div>
+      <div style="font-size:9px; color:#8aa8b0; display:flex; gap:6px; margin-top:2px;">
+        <span style="color:#ff6b8b; font-weight:700;">❤️ ${likesFormatted}</span>
+        <span style="color:#00d2ff; font-weight:600;">📥 ${tasksFormatted}회</span>
+      </div>
+    `;
+
     const btnGroup = document.createElement("div");
     btnGroup.style.cssText = "display:flex; gap:4px; align-items:center;";
 
@@ -631,6 +790,19 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
       } else {
         saveFavorites([{ id: item._id, title: item.title, languages: item.languages || [] }, ...currentFavorites]);
       }
+    });
+
+    const dlBtn = document.createElement("button");
+    dlBtn.type = "button";
+    dlBtn.className = "btn-download-voice";
+    dlBtn.title = `내 PC로 '${item.title}' 음성셋(오디오+대본) 다운로드`;
+    dlBtn.style.cssText = "background:rgba(0,210,255,0.12); color:#00d2ff; border:1px solid rgba(0,210,255,0.35); border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; white-space:nowrap; font-weight:600;";
+    dlBtn.textContent = "📥 다운";
+    dlBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dlBtn.disabled = true;
+      dlBtn.textContent = "⏳ 다운 중…";
+      window.miku.send(Ipc.DOWNLOAD_VOICE_SET, { modelId: item._id, title: item.title });
     });
 
     const selBtn = document.createElement("button");
@@ -650,12 +822,58 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
     });
 
     btnGroup.appendChild(favBtn);
+    btnGroup.appendChild(dlBtn);
     btnGroup.appendChild(selBtn);
 
     card.appendChild(info);
     card.appendChild(btnGroup);
     fishSearchResults.appendChild(card);
   });
+
+  if (fishLoadMoreContainer) {
+    if (r.hasMore) {
+      fishLoadMoreContainer.style.display = "block";
+    } else {
+      if (currentLoadedCount > 0 && btnFishLoadMore) {
+        btnFishLoadMore.textContent = "✓ 모든 음성을 불러왔습니다";
+        btnFishLoadMore.disabled = true;
+        fishLoadMoreContainer.style.display = "block";
+      } else {
+        fishLoadMoreContainer.style.display = "none";
+      }
+    }
+  }
+});
+
+window.miku.on(Ipc.DOWNLOAD_VOICE_SET, (res: unknown) => {
+  const r = res as { ok: boolean; modelId?: string; title?: string; folderPath?: string; error?: string };
+  if (!r) return;
+  const card = document.querySelector(`.fish-card[data-id="${r.modelId}"]`);
+  const dlBtn = card?.querySelector(".btn-download-voice") as HTMLButtonElement;
+  if (r.ok) {
+    if (dlBtn) {
+      dlBtn.textContent = "✓ 완료 📂";
+      dlBtn.style.background = "#64ff96";
+      dlBtn.style.color = "#071318";
+      dlBtn.style.border = "none";
+      dlBtn.disabled = false;
+      dlBtn.title = "다운로드된 폴더 열기";
+      dlBtn.onclick = (e) => {
+        e.stopPropagation();
+        window.miku.send(Ipc.OPEN_DOWNLOADS_FOLDER, r.folderPath);
+      };
+    }
+    alert(`'${r.title || "음성"}' 음성셋 다운로드가 완료되었습니다!\n\n저장 위치:\n${r.folderPath}`);
+  } else {
+    if (dlBtn) {
+      dlBtn.textContent = "❌ 실패";
+      dlBtn.disabled = false;
+      setTimeout(() => {
+        dlBtn.textContent = "📥 다운";
+      }, 3000);
+    }
+    alert(`음성셋 다운로드 실패: ${r.error}`);
+  }
 });
 
 saveBtn.addEventListener("click", () => {

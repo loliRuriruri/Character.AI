@@ -1020,16 +1020,37 @@ function setupIpc(): void {
     ipcMain.on(Ipc.SEARCH_FISH_MODELS, async (ev, query: unknown) => {
       try {
         const params = new URLSearchParams();
+        let sortBy: "likes" | "downloads" = "likes";
+        let pageNumber = 1;
+        let pageSize = 30;
+        let append = false;
+
         if (typeof query === "object" && query !== null) {
-          const opt = query as { tag?: string; language?: string; title?: string; pageSize?: number };
+          const opt = query as {
+            tag?: string;
+            language?: string;
+            title?: string;
+            sortBy?: "likes" | "downloads";
+            pageNumber?: number;
+            pageSize?: number;
+            append?: boolean;
+          };
           if (opt.tag && opt.tag !== "all") params.set("tag", opt.tag);
           if (opt.language && opt.language !== "all") params.set("language", opt.language);
           if (opt.title) params.set("title", opt.title);
-          params.set("page_size", String(opt.pageSize || 16));
+          if (opt.sortBy === "downloads") {
+            params.set("sort_by", "task_count");
+            sortBy = "downloads";
+          }
+          pageNumber = opt.pageNumber || 1;
+          pageSize = opt.pageSize || 30;
+          append = Boolean(opt.append);
+          params.set("page_number", String(pageNumber));
+          params.set("page_size", String(pageSize));
         } else {
           const q = String(query || "").trim();
           if (!q) {
-            ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: [] });
+            ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: [], total: 0, append: false });
             return;
           }
           if (q.startsWith("tag:")) {
@@ -1038,11 +1059,12 @@ function setupIpc(): void {
             const lang = parts[1]?.trim();
             if (tag && tag !== "all") params.set("tag", tag);
             if (lang && lang !== "all") params.set("language", lang);
-            params.set("page_size", "16");
+            params.set("page_size", "30");
           } else {
             params.set("title", q);
-            params.set("page_size", "14");
+            params.set("page_size", "30");
           }
+          params.set("page_number", "1");
         }
 
         const apiUrl = `https://api.fish.audio/model?${params.toString()}`;
@@ -1050,8 +1072,27 @@ function setupIpc(): void {
           headers: { "User-Agent": "Mozilla/5.0" },
         });
         if (!resp.ok) throw new Error("Fish Audio 검색 실패: " + resp.status);
-        const data = (await resp.json()) as { items?: any[] };
-        ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: data.items || [], query });
+        const data = (await resp.json()) as { items?: any[]; total?: number };
+        let items = data.items || [];
+
+        // Exact sorting on returned items to guarantee strict ordering
+        if (sortBy === "downloads") {
+          items.sort((a, b) => (b.task_count || 0) - (a.task_count || 0));
+        } else {
+          items.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+        }
+
+        ev.sender.send(Ipc.SEARCH_FISH_MODELS, {
+          ok: true,
+          items,
+          total: data.total ?? items.length,
+          pageNumber,
+          pageSize,
+          sortBy,
+          append,
+          hasMore: items.length >= pageSize,
+          query,
+        });
       } catch (err: any) {
         ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: false, error: err.message, query });
       }
@@ -1070,6 +1111,93 @@ function setupIpc(): void {
         }
       } catch (err: any) {
         broadcast(Ipc.ERROR, "Fish Audio 테스트 실패: " + err.message);
+      }
+    });
+
+    ipcMain.on(Ipc.DOWNLOAD_VOICE_SET, async (ev, data: { modelId: string; title?: string }) => {
+      try {
+        if (!data || !data.modelId) {
+          ev.sender.send(Ipc.DOWNLOAD_VOICE_SET, { ok: false, error: "모델 ID가 필요합니다." });
+          return;
+        }
+
+        const modelResp = await fetch(`https://api.fish.audio/model/${encodeURIComponent(data.modelId)}`, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+        });
+        if (!modelResp.ok) throw new Error("모델 정보 조회 실패: " + modelResp.status);
+        const modelData = (await modelResp.json()) as any;
+
+        const title = (modelData.title || data.title || data.modelId).trim();
+        const safeFolderName = title.replace(/[/\\?%*:|"<>]/g, "_").trim() || data.modelId;
+        const sample = modelData.samples?.[0];
+        const audioUrl = sample?.audio;
+        const transcriptText = sample?.text || modelData.default_text || "";
+
+        if (!audioUrl) {
+          throw new Error("다운로드 가능한 오디오 샘플 URL이 없습니다.");
+        }
+
+        const audioResp = await fetch(audioUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (!audioResp.ok) throw new Error("오디오 파일 다운로드 실패: " + audioResp.status);
+        const audioBuffer = Buffer.from(await audioResp.arrayBuffer());
+
+        const downloadsDir = path.join(app.getPath("downloads"), "MikuChat_Voices", safeFolderName);
+        fs.mkdirSync(downloadsDir, { recursive: true });
+
+        const audioFilePath = path.join(downloadsDir, `${safeFolderName}.mp3`);
+        fs.writeFileSync(audioFilePath, audioBuffer);
+
+        const transcriptPath = path.join(downloadsDir, "transcript.txt");
+        fs.writeFileSync(transcriptPath, transcriptText, "utf8");
+
+        const metaPath = path.join(downloadsDir, "voice_set_info.json");
+        fs.writeFileSync(
+          metaPath,
+          JSON.stringify(
+            {
+              modelId: data.modelId,
+              title,
+              description: modelData.description || "",
+              languages: modelData.languages || [],
+              tags: modelData.tags || [],
+              like_count: modelData.like_count || 0,
+              task_count: modelData.task_count || 0,
+              audioFile: `${safeFolderName}.mp3`,
+              transcript: transcriptText,
+              downloadedAt: new Date().toISOString(),
+            },
+            null,
+            2
+          ),
+          "utf8"
+        );
+
+        ev.sender.send(Ipc.DOWNLOAD_VOICE_SET, {
+          ok: true,
+          modelId: data.modelId,
+          title,
+          folderPath: downloadsDir,
+          audioFilePath,
+        });
+      } catch (err: any) {
+        ev.sender.send(Ipc.DOWNLOAD_VOICE_SET, {
+          ok: false,
+          modelId: data?.modelId,
+          error: String(err?.message || err),
+        });
+      }
+    });
+
+    ipcMain.on(Ipc.OPEN_DOWNLOADS_FOLDER, async (_ev, targetPath?: string) => {
+      try {
+        const p = targetPath || path.join(app.getPath("downloads"), "MikuChat_Voices");
+        if (fs.existsSync(p)) {
+          shell.openPath(p);
+        } else {
+          shell.openPath(app.getPath("downloads"));
+        }
+      } catch (e: any) {
+        console.warn("다운로드 폴더 열기 실패:", e);
       }
     });
 
