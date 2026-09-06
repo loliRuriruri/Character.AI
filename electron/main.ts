@@ -244,20 +244,29 @@ function loadRenderer(win: BrowserWindow, file: string): void {
 
 async function fetchOllamaModels(): Promise<{ name: string; size: string; isAbliterated: boolean }[]> {
   try {
-    const res = await fetch("http://127.0.0.1:11434/api/tags");
-    if (!res.ok) throw new Error();
+    const res = await fetch("http://127.0.0.1:11434/api/tags", {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
     const data = (await res.json()) as any;
     if (!data.models || !Array.isArray(data.models)) return [];
     return data.models.map((m: any) => ({
       name: m.name,
       size: (m.size / (1024 * 1024 * 1024)).toFixed(1) + " GB",
-      isAbliterated: m.name.includes("abliterated") || m.name.includes("uncensored") || m.name.includes("qwen3-vl"),
+      isAbliterated: m.name.includes("abliterated") || m.name.includes("uncensored") || m.name.includes("qwen3-vl") || m.name.includes("heretic"),
     }));
-  } catch {
+  } catch (err) {
+    console.warn("[Ollama] fetchOllamaModels failed or timed out, returning fallback list:", err);
     return [
+      { name: "gemma4:26b-styletune-v2", size: "17.0 GB", isAbliterated: false },
+      { name: "gemma4:12b-heretic-styletune", size: "10.0 GB", isAbliterated: true },
+      { name: "Qwen3.8-9B-heretic:latest", size: "5.2 GB", isAbliterated: true },
+      { name: "Qwen3.8-9B-fast:latest", size: "5.2 GB", isAbliterated: false },
+      { name: "qwen2.5:14b", size: "9.0 GB", isAbliterated: false },
       { name: "gemma4:12b", size: "7.6 GB", isAbliterated: false },
-      { name: "huihui_ai/qwen3-vl-abliterated:8b-instruct", size: "6.1 GB", isAbliterated: true },
+      { name: "gemma4:26b", size: "17.0 GB", isAbliterated: false },
       { name: "gemma4:31b", size: "19.0 GB", isAbliterated: false },
+      { name: "huihui_ai/qwen3-vl-abliterated:8b-instruct", size: "6.1 GB", isAbliterated: true },
     ];
   }
 }
@@ -831,6 +840,7 @@ function setupIpc(): void {
   ipcMain.on(Ipc.GET_OLLAMA_MODELS, async (ev) => {
     const models = await fetchOllamaModels();
     ev.sender.send(Ipc.OLLAMA_MODELS_LIST, models);
+    broadcast(Ipc.OLLAMA_MODELS_LIST, models);
   });
 
   

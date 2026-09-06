@@ -366,6 +366,7 @@ btnToggleModelbar.addEventListener("click", () => {
   modelDrawer.style.display = isHidden ? "flex" : "none";
   btnToggleModelbar.classList.toggle("active", isHidden);
   if (isHidden) {
+    window.miku.send(Ipc.GET_OLLAMA_MODELS);
     if (quickTtsProv && currentAppSettings) {
       quickTtsProv.value = currentAppSettings.ttsProvider || "voxcpm";
     }
@@ -542,12 +543,36 @@ window.miku.on(Ipc.OLLAMA_MODELS_LIST, (models: unknown) => {
       if (!modelName) return;
       const opt = document.createElement("option");
       opt.value = modelName;
-      opt.textContent = `🤖 ${modelName}`;
+      const sizeStr = m?.size ? ` (${m.size})` : "";
+      let tag = "";
+      if (modelName.includes("styletune-v2")) tag = " [👑 Balanced RP]";
+      else if (modelName.includes("heretic-styletune")) tag = " [🎭 Fast RP]";
+      else if (modelName.includes("heretic")) tag = " [⚡ 초고속 RP]";
+      else if (modelName.includes("fast")) tag = " [⚡ 고속]";
+      else if (m?.isAbliterated) tag = " [🔓 무검열]";
+
+      opt.textContent = `🤖 ${modelName}${sizeStr}${tag}`;
       if (currentAppSettings && currentAppSettings.provider === "ollama" && modelName === currentAppSettings.model) {
         opt.selected = true;
       }
       quickLlmSelect.appendChild(opt);
     });
+
+    // Ensure active model from settings is never dropped even if absent from list
+    if (currentAppSettings && currentAppSettings.provider === "ollama" && currentAppSettings.model) {
+      const exists = Array.from(quickLlmSelect.options).some((o) => o.value === currentAppSettings!.model);
+      if (!exists) {
+        const curOpt = document.createElement("option");
+        curOpt.value = currentAppSettings.model;
+        curOpt.textContent = `🤖 ${currentAppSettings.model} (현재 선택)`;
+        curOpt.selected = true;
+        quickLlmSelect.appendChild(curOpt);
+      }
+      quickLlmSelect.value = currentAppSettings.model;
+    } else if (currentAppSettings && currentAppSettings.provider === "gemini") {
+      quickLlmSelect.value = "gemini-2.5-flash";
+    }
+
     updateModelVoiceLabels();
   }
 });
@@ -1100,6 +1125,13 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
     if (state.settings.provider === "gemini") {
       quickLlmSelect.value = "gemini-2.5-flash";
     } else if (state.settings.model) {
+      const exists = Array.from(quickLlmSelect.options).some((o) => o.value === state.settings.model);
+      if (!exists && state.settings.model) {
+        const opt = document.createElement("option");
+        opt.value = state.settings.model;
+        opt.textContent = `🤖 ${state.settings.model}`;
+        quickLlmSelect.appendChild(opt);
+      }
       quickLlmSelect.value = state.settings.model;
     }
     if (quickTtsProv) {
