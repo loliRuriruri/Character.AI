@@ -234,6 +234,13 @@ const FISH_VOICE_PRESETS = [
   { id: "088d160c978f4e8ba98701af1f58f842", name: "🌸 아로나" },
 ];
 
+const IRODORI_LORA_PRESETS = [
+  { id: "Nilou3000", name: "🌸 닐루 (Nilou)" },
+  { id: "Furina", name: "💧 푸리나 (Furina)" },
+  { id: "HuTao", name: "🔥 호두 (Hu Tao)" },
+  { id: "Miku_JP", name: "🎵 미쿠 (일본어)" },
+];
+
 function populateQuickVoices(provider: string): void {
   if (!quickVoiceSelect) return;
   quickVoiceSelect.innerHTML = "";
@@ -280,8 +287,25 @@ function populateQuickVoices(provider: string): void {
       quickVoiceSelect.prepend(opt);
     }
     quickVoiceSelect.value = curFishId;
+  } else if (provider === "irodori") {
+    const curLora = currentAppSettings?.irodoriLoraId || "Nilou3000";
+    IRODORI_LORA_PRESETS.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.name;
+      if (item.id === curLora) opt.selected = true;
+      quickVoiceSelect.appendChild(opt);
+    });
+    quickVoiceSelect.value = curLora;
+  } else if (provider === "web") {
+    const opt = document.createElement("option");
+    opt.value = "web_default";
+    opt.textContent = "🔊 Windows 기본 음성 (Web Speech)";
+    opt.selected = true;
+    quickVoiceSelect.appendChild(opt);
+    quickVoiceSelect.value = "web_default";
   } else {
-    const curVoice = currentAppSettings?.ttsVoiceId || "ganyu";
+    const curVoice = currentAppSettings?.ttsVoiceId || "my_voice_03";
     cachedVoiceCatalog.forEach((v) => {
       const opt = document.createElement("option");
       opt.value = v.id;
@@ -356,12 +380,30 @@ quickLlmSelect.addEventListener("change", () => {
 quickVoiceSelect.addEventListener("change", () => {
   const chosen = quickVoiceSelect.value;
   if (!chosen) return;
-  if (currentAppSettings?.ttsProvider === "fish") {
-    if (currentAppSettings) currentAppSettings.fishVoiceId = chosen;
+  const prov = quickTtsProv?.value || currentAppSettings?.ttsProvider || "voxcpm";
+  if (prov === "fish") {
+    if (currentAppSettings) {
+      currentAppSettings.fishVoiceId = chosen;
+      currentAppSettings.ttsProvider = "fish";
+    }
     window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: chosen, ttsProvider: "fish" });
     window.miku.send(Ipc.TEST_FISH_VOICE, { apiKey: currentAppSettings?.fishApiKey, voiceId: chosen });
+  } else if (prov === "irodori") {
+    if (currentAppSettings) {
+      currentAppSettings.irodoriLoraId = chosen;
+      currentAppSettings.ttsProvider = "irodori";
+    }
+    window.miku.send(Ipc.SETTINGS_UPDATE, { irodoriLoraId: chosen, ttsProvider: "irodori" });
+  } else if (prov === "web") {
+    if (currentAppSettings) currentAppSettings.ttsProvider = "web";
+    window.miku.send(Ipc.SETTINGS_UPDATE, { ttsProvider: "web" });
+    speechSynthesis.cancel();
+    speechSynthesis.speak(new SpeechSynthesisUtterance("안녕하세요! 시스템 기본 음성입니다."));
   } else {
-    if (currentAppSettings) currentAppSettings.ttsVoiceId = chosen;
+    if (currentAppSettings) {
+      currentAppSettings.ttsVoiceId = chosen;
+      currentAppSettings.ttsProvider = "voxcpm";
+    }
     window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen, ttsProvider: "voxcpm" });
     window.miku.send(Ipc.PREVIEW_VOICE, chosen);
   }
@@ -381,12 +423,18 @@ quickTtsProv?.addEventListener("change", () => {
 btnQuickPreview.addEventListener("click", () => {
   const chosen = quickVoiceSelect.value;
   if (!chosen) return;
-  if (currentAppSettings?.ttsProvider === "fish") {
+  const prov = quickTtsProv?.value || currentAppSettings?.ttsProvider || "voxcpm";
+  if (prov === "fish") {
     btnQuickPreview.textContent = "⏳";
     window.miku.send(Ipc.TEST_FISH_VOICE, { apiKey: currentAppSettings?.fishApiKey, voiceId: chosen });
     setTimeout(() => { btnQuickPreview.textContent = "▶"; }, 2500);
+  } else if (prov === "web") {
+    speechSynthesis.cancel();
+    speechSynthesis.speak(new SpeechSynthesisUtterance("안녕하세요! 시스템 기본 음성입니다."));
   } else {
+    btnQuickPreview.textContent = "⏳";
     window.miku.send(Ipc.PREVIEW_VOICE, chosen);
+    setTimeout(() => { btnQuickPreview.textContent = "▶"; }, 1500);
   }
 });
 
@@ -477,7 +525,9 @@ function updateModelVoiceLabels(): void {
     const vName = fav ? fav.title : pre ? pre.name : fid ? `커스텀 (${fid.slice(0, 8)}…)` : "미쿠";
     voiceDesc = `🐟 Fish Audio (${vName})`;
   } else if (currentAppSettings.ttsProvider === "irodori") {
-    voiceDesc = "🇯🇵 Irodori (일본어)";
+    const lora = currentAppSettings.irodoriLoraId || "Nilou3000";
+    const pre = IRODORI_LORA_PRESETS.find((x) => x.id === lora);
+    voiceDesc = `🇯🇵 Irodori (${pre ? pre.name : lora})`;
   } else if (currentAppSettings.ttsProvider === "web") {
     voiceDesc = "🔊 시스템 음성";
   } else {

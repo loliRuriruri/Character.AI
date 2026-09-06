@@ -8,7 +8,7 @@ import { SrsEngine } from "./srs";
 import { defaultSettings, type AppSettings, type AppState, type ChatMessage, type TtsStatus, type GestureName, type ViewMode } from "../src/shared/types";
 import { completeChat, LlmError } from "./llm";
 import { loadSettings, saveSettings } from "./settings";
-import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, resolveVoiceProfileConfig, type TtsPlay } from "./tts";
+import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, resolveVoiceProfileConfig, isValidFishVoiceId, type TtsPlay } from "./tts";
 import { applyVoiceSelection, loadVoiceCatalog, voiceById, resolveVoiceWav, addVoiceToCatalog } from "./voices";
 import { CharacterCore } from "../src/core/character/CharacterCore";
 import { PromptComposer } from "../src/core/prompt/PromptComposer";
@@ -1343,7 +1343,31 @@ function setupIpc(): void {
     settings = { ...settings, ...(next as Partial<AppSettings>) };
     const patch = next as Partial<AppSettings>;
 
-    // Keep active profile in sync with direct engine / voice quick selection
+    // 1. If activeVoiceProfileId changed, synchronize main settings from that profile
+    if (patch.activeVoiceProfileId) {
+      const p = (settings.voiceProfiles || []).find((x) => x.id === patch.activeVoiceProfileId);
+      if (p) {
+        const eng = p.preferredEngine?.default || p.preferredEngine?.ko || settings.ttsProvider;
+        settings.ttsProvider = eng;
+        if (eng === "voxcpm") {
+          const wavId = p.voxcpm?.koReferenceWav || settings.ttsVoiceId;
+          settings.ttsVoiceId = wavId;
+          const applied = applyVoiceSelection(wavId);
+          if (applied) settings = { ...settings, ...applied };
+        } else if (eng === "fish") {
+          const fid = p.fish?.koReferenceId || p.fish?.referenceId || settings.fishVoiceId;
+          if (fid && isValidFishVoiceId(fid)) {
+            settings.fishVoiceId = fid;
+          }
+        } else if (eng === "irodori") {
+          if (p.irodori?.loraId) {
+            settings.irodoriLoraId = p.irodori.loraId;
+          }
+        }
+      }
+    }
+
+    // 2. Keep active profile in sync with direct engine / voice quick selection
     const activeProfile = (settings.voiceProfiles || []).find((p) => p.id === settings.activeVoiceProfileId);
     if (activeProfile) {
       if (patch.ttsProvider) {
@@ -1355,11 +1379,33 @@ function setupIpc(): void {
         if (!activeProfile.fish) activeProfile.fish = {};
         activeProfile.fish.referenceId = patch.fishVoiceId;
         activeProfile.fish.koReferenceId = patch.fishVoiceId;
+        if (!patch.ttsProvider) {
+          settings.ttsProvider = "fish";
+          if (!activeProfile.preferredEngine) activeProfile.preferredEngine = {};
+          activeProfile.preferredEngine.default = "fish";
+          activeProfile.preferredEngine.ko = "fish";
+        }
       }
       if (patch.ttsVoiceId) {
         if (!activeProfile.voxcpm) activeProfile.voxcpm = {};
         activeProfile.voxcpm.koReferenceWav = patch.ttsVoiceId;
         activeProfile.voxcpm.defaultReferenceWav = resolveVoiceWav(patch.ttsVoiceId);
+        if (!patch.ttsProvider) {
+          settings.ttsProvider = "voxcpm";
+          if (!activeProfile.preferredEngine) activeProfile.preferredEngine = {};
+          activeProfile.preferredEngine.default = "voxcpm";
+          activeProfile.preferredEngine.ko = "voxcpm";
+        }
+      }
+      if (patch.irodoriLoraId) {
+        if (!activeProfile.irodori) activeProfile.irodori = {};
+        activeProfile.irodori.loraId = patch.irodoriLoraId;
+        if (!patch.ttsProvider) {
+          settings.ttsProvider = "irodori";
+          if (!activeProfile.preferredEngine) activeProfile.preferredEngine = {};
+          activeProfile.preferredEngine.default = "irodori";
+          activeProfile.preferredEngine.ja = "irodori";
+        }
       }
     }
 

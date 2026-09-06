@@ -1190,7 +1190,7 @@ voiceSel.addEventListener("change", () => {
     vText.innerHTML = `<span style="color:#64ff96;">✅ ${chosen} 보이스 0초 즉시 적용됨</span>`;
   }
   if (chosen) {
-    window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen });
+    window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen, ttsProvider: "voxcpm" });
     window.miku.send(Ipc.PREVIEW_VOICE, chosen);
   }
 });
