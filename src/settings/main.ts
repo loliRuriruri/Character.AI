@@ -198,8 +198,8 @@ root.innerHTML = `
                 </select>
               </div>
               <div style="display:flex; gap:3px; margin-top:13px;">
-                <button id="btn-fetch-ranking" type="button" style="background:#00d2ff; color:#06141d; font-weight:800; padding:3px 8px; border-radius:5px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">🔥 조회</button>
-                <button id="btn-refresh-ranking" type="button" title="목록 새로고침" style="background:rgba(255,255,255,0.12); color:#e8fbff; font-weight:700; padding:3px 6px; border-radius:5px; font-size:10.5px; border:1px solid rgba(255,255,255,0.25); cursor:pointer;">🔄</button>
+                <button id="btn-fetch-ranking" type="button" title="1위부터 처음으로 새로고침" style="background:#00d2ff; color:#06141d; font-weight:800; padding:3px 8px; border-radius:5px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">🔥 1위부터</button>
+                <button id="btn-refresh-ranking" type="button" title="다음 50개 더 불러오기 (목록 아래로 스크롤해도 자동 추가)" style="background:rgba(255,255,255,0.12); color:#e8fbff; font-weight:700; padding:3px 8px; border-radius:5px; font-size:10.5px; border:1px solid rgba(255,255,255,0.25); cursor:pointer; white-space:nowrap;">🔄 더보기</button>
               </div>
             </div>
 
@@ -215,12 +215,8 @@ root.innerHTML = `
               <span id="fish-sort-label" style="color:#00d2ff;">정렬: ❤️ 좋아요 많은 순</span>
             </div>
 
-            <div id="fish-search-results" style="display:flex; max-height:220px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;">
-              <span style="color:#8aa8b0; font-size:10px; padding:8px 0; text-align:center;">상단 [🔥 조회] 또는 [🔄]를 누르면 실시간 랭킹 순위가 로드됩니다.</span>
-            </div>
-
-            <div id="fish-load-more-container" style="display:none; margin-top:5px; text-align:center;">
-              <button id="btn-fish-load-more" type="button" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff; font-size:10.5px; font-weight:700; border-radius:6px; padding:4px 12px; cursor:pointer; width:100%;">➕ 다음 30개 더 불러오기</button>
+            <div id="fish-search-results" style="display:flex; max-height:290px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;">
+              <span style="color:#8aa8b0; font-size:10px; padding:8px 0; text-align:center;">상단 [🔥 1위부터] 또는 [🔄 더보기]를 누르면 실시간 랭킹 순위가 로드됩니다.</span>
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
@@ -475,14 +471,13 @@ const fishFilterSort = document.getElementById("fish-filter-sort") as HTMLSelect
 const btnAddCurrentFav = document.getElementById("btn-add-current-fav") as HTMLButtonElement;
 const fishResultsCount = document.getElementById("fish-results-count") as HTMLSpanElement;
 const fishSortLabel = document.getElementById("fish-sort-label") as HTMLSpanElement;
-const fishLoadMoreContainer = document.getElementById("fish-load-more-container") as HTMLDivElement;
-const btnFishLoadMore = document.getElementById("btn-fish-load-more") as HTMLButtonElement;
-
 let currentFavorites: FishVoiceFavorite[] = [];
 let currentRankingPage = 1;
 let currentLoadedCount = 0;
 let lastQueryType: "ranking" | "search" = "ranking";
 let lastSearchText = "";
+let isFetchingMore = false;
+let hasMoreVoices = true;
 
 function loadFavorites(fromSettings?: FishVoiceFavorite[]) {
   if (fromSettings && Array.isArray(fromSettings)) {
@@ -621,7 +616,51 @@ btnOpenDownloadsFolder?.addEventListener("click", () => {
   window.miku.send(Ipc.OPEN_DOWNLOADS_FOLDER);
 });
 
+function updateListFooter(total?: number) {
+  if (!fishSearchResults) return;
+  let footer = document.getElementById("fish-list-footer") as HTMLDivElement;
+  if (!footer) {
+    footer = document.createElement("div");
+    footer.id = "fish-list-footer";
+    footer.style.cssText = "margin-top:6px; margin-bottom:4px; text-align:center; padding:6px 0;";
+  }
+
+  if (hasMoreVoices) {
+    const totalDisplay = total ? ` / 전체 약 ${total.toLocaleString()}개` : "";
+    footer.innerHTML = `
+      <button id="btn-footer-load-more" type="button" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff; font-size:10.5px; font-weight:700; border-radius:6px; padding:5px 14px; cursor:pointer; width:95%; transition:all 0.2s;">
+        ➕ 다음 50개 더 불러오기 (현재 ${currentLoadedCount}개${totalDisplay})
+      </button>
+      <div style="font-size:9px; color:#8aa8b0; margin-top:3px;">💡 아래로 스크롤하면 자동으로도 추가됩니다</div>
+    `;
+    footer.querySelector("#btn-footer-load-more")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadNextPage();
+    });
+  } else {
+    const totalDisplay = total ? ` (총 ${total.toLocaleString()}개)` : "";
+    footer.innerHTML = `<span style="color:#8aa8b0; font-size:10px; font-weight:600;">✓ 모든 음성을 불러왔습니다${totalDisplay}</span>`;
+  }
+  fishSearchResults.appendChild(footer);
+}
+
+function updateListFooterLoading(isLoading: boolean) {
+  if (!fishSearchResults) return;
+  let footer = document.getElementById("fish-list-footer") as HTMLDivElement;
+  if (!footer) {
+    footer = document.createElement("div");
+    footer.id = "fish-list-footer";
+    footer.style.cssText = "margin-top:6px; margin-bottom:4px; text-align:center; padding:6px 0;";
+    fishSearchResults.appendChild(footer);
+  }
+  if (isLoading) {
+    footer.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; font-weight:600;">⏳ 다음 50개 음성을 실시간으로 불러오는 중…</span>';
+  }
+}
+
 function triggerRankingQuery(pageNumber = 1, append = false) {
+  if (isFetchingMore) return;
+  isFetchingMore = true;
   currentRankingPage = pageNumber;
   lastQueryType = "ranking";
   const tag = fishFilterGenre?.value || "gaming";
@@ -630,27 +669,26 @@ function triggerRankingQuery(pageNumber = 1, append = false) {
 
   if (!append) {
     currentLoadedCount = 0;
+    hasMoreVoices = true;
     if (fishSearchResults) {
       fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:8px 0; text-align:center;">🔥 순위 데이터를 실시간으로 불러오는 중…</span>';
     }
-    if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
   } else {
-    if (btnFishLoadMore) {
-      btnFishLoadMore.textContent = "⏳ 불러오는 중…";
-      btnFishLoadMore.disabled = true;
-    }
+    updateListFooterLoading(true);
   }
 
   if (fishSortLabel) {
     fishSortLabel.textContent = sortBy === "downloads" ? "정렬: 📥 다운로드/사용 많은 순" : "정렬: ❤️ 좋아요 많은 순";
   }
 
-  window.miku.send(Ipc.SEARCH_FISH_MODELS, { tag, language, sortBy, pageNumber, pageSize: 30, append });
+  window.miku.send(Ipc.SEARCH_FISH_MODELS, { tag, language, sortBy, pageNumber, pageSize: 50, append });
 }
 
 function triggerSearchQuery(pageNumber = 1, append = false) {
   const q = fishSearchInput?.value.trim() || lastSearchText;
   if (!q) return;
+  if (isFetchingMore) return;
+  isFetchingMore = true;
   lastSearchText = q;
   lastQueryType = "search";
   currentRankingPage = pageNumber;
@@ -658,26 +696,37 @@ function triggerSearchQuery(pageNumber = 1, append = false) {
 
   if (!append) {
     currentLoadedCount = 0;
+    hasMoreVoices = true;
     if (fishSearchResults) {
       fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:8px 0; text-align:center;">🔍 검색 결과를 불러오는 중…</span>';
     }
-    if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
   } else {
-    if (btnFishLoadMore) {
-      btnFishLoadMore.textContent = "⏳ 불러오는 중…";
-      btnFishLoadMore.disabled = true;
-    }
+    updateListFooterLoading(true);
   }
 
-  window.miku.send(Ipc.SEARCH_FISH_MODELS, { title: q, sortBy, pageNumber, pageSize: 30, append });
+  window.miku.send(Ipc.SEARCH_FISH_MODELS, { title: q, sortBy, pageNumber, pageSize: 50, append });
+}
+
+function loadNextPage() {
+  if (isFetchingMore || !hasMoreVoices) return;
+  const nextPage = currentRankingPage + 1;
+  if (lastQueryType === "search" && lastSearchText) {
+    triggerSearchQuery(nextPage, true);
+  } else {
+    triggerRankingQuery(nextPage, true);
+  }
 }
 
 btnFetchRanking?.addEventListener("click", () => triggerRankingQuery(1, false));
 btnRefreshRanking?.addEventListener("click", () => {
-  if (lastQueryType === "search" && lastSearchText) {
-    triggerSearchQuery(1, false);
+  if (currentLoadedCount > 0 && hasMoreVoices) {
+    loadNextPage();
   } else {
-    triggerRankingQuery(1, false);
+    if (lastQueryType === "search" && lastSearchText) {
+      triggerSearchQuery(1, false);
+    } else {
+      triggerRankingQuery(1, false);
+    }
   }
 });
 fishFilterGenre?.addEventListener("change", () => triggerRankingQuery(1, false));
@@ -690,11 +739,11 @@ fishFilterSort?.addEventListener("change", () => {
   }
 });
 
-btnFishLoadMore?.addEventListener("click", () => {
-  if (lastQueryType === "search") {
-    triggerSearchQuery(currentRankingPage + 1, true);
-  } else {
-    triggerRankingQuery(currentRankingPage + 1, true);
+fishSearchResults?.addEventListener("scroll", () => {
+  if (isFetchingMore || !hasMoreVoices) return;
+  const { scrollTop, scrollHeight, clientHeight } = fishSearchResults;
+  if (scrollTop + clientHeight >= scrollHeight - 80) {
+    loadNextPage();
   }
 });
 
@@ -707,6 +756,7 @@ fishSearchInput?.addEventListener("keydown", (e) => {
 });
 
 window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
+  isFetchingMore = false;
   const r = res as {
     ok: boolean;
     items?: any[];
@@ -720,38 +770,39 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
   };
   if (!fishSearchResults) return;
 
-  if (btnFishLoadMore) {
-    btnFishLoadMore.disabled = false;
-    btnFishLoadMore.textContent = "➕ 다음 30개 더 불러오기";
-  }
+  hasMoreVoices = Boolean(r?.hasMore);
+  if (r?.pageNumber) currentRankingPage = r.pageNumber;
 
   if (!r || !r.ok || !r.items || r.items.length === 0) {
     if (!r?.append) {
       fishSearchResults.innerHTML = '<span style="color:#8aa8b0; font-size:10.5px; padding:8px 0; text-align:center;">검색/랭킹 결과가 없습니다. 다른 조건으로 검색해보세요.</span>';
       if (fishResultsCount) fishResultsCount.textContent = "조회 결과: 0개";
-      if (fishLoadMoreContainer) fishLoadMoreContainer.style.display = "none";
     } else {
-      if (btnFishLoadMore) {
-        btnFishLoadMore.textContent = "✓ 모든 음성을 불러왔습니다";
-        btnFishLoadMore.disabled = true;
-      }
+      hasMoreVoices = false;
+      updateListFooter(r.total);
     }
     return;
   }
 
+  // Remove existing footer before appending new cards
+  const existingFooter = document.getElementById("fish-list-footer");
+  if (existingFooter) existingFooter.remove();
+
   if (!r.append) {
     fishSearchResults.innerHTML = "";
-    currentLoadedCount = r.items.length;
-  } else {
-    currentLoadedCount += r.items.length;
+    currentLoadedCount = 0;
   }
 
-  if (fishResultsCount) {
-    const totalStr = r.total ? ` (전체 약 ${r.total.toLocaleString()}개)` : "";
-    fishResultsCount.textContent = `조회 결과: ${currentLoadedCount}개${totalStr}`;
-  }
+  const existingIds = new Set(
+    Array.from(fishSearchResults.querySelectorAll(".fish-card")).map((el) => (el as HTMLElement).dataset.id)
+  );
 
+  let newlyAdded = 0;
   r.items.forEach((item) => {
+    if (existingIds.has(item._id)) return;
+    existingIds.add(item._id);
+    newlyAdded++;
+
     const card = document.createElement("div");
     card.className = "fish-card";
     card.dataset.id = item._id;
@@ -830,19 +881,14 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
     fishSearchResults.appendChild(card);
   });
 
-  if (fishLoadMoreContainer) {
-    if (r.hasMore) {
-      fishLoadMoreContainer.style.display = "block";
-    } else {
-      if (currentLoadedCount > 0 && btnFishLoadMore) {
-        btnFishLoadMore.textContent = "✓ 모든 음성을 불러왔습니다";
-        btnFishLoadMore.disabled = true;
-        fishLoadMoreContainer.style.display = "block";
-      } else {
-        fishLoadMoreContainer.style.display = "none";
-      }
-    }
+  currentLoadedCount += newlyAdded;
+
+  if (fishResultsCount) {
+    const totalStr = r.total ? ` (전체 약 ${r.total.toLocaleString()}개)` : "";
+    fishResultsCount.textContent = `조회 결과: ${currentLoadedCount}개${totalStr}`;
   }
+
+  updateListFooter(r.total);
 });
 
 window.miku.on(Ipc.DOWNLOAD_VOICE_SET, (res: unknown) => {

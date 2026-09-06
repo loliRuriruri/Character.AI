@@ -1043,7 +1043,7 @@ function setupIpc(): void {
             sortBy = "downloads";
           }
           pageNumber = opt.pageNumber || 1;
-          pageSize = opt.pageSize || 30;
+          pageSize = opt.pageSize || 50;
           append = Boolean(opt.append);
           params.set("page_number", String(pageNumber));
           params.set("page_size", String(pageSize));
@@ -1059,10 +1059,10 @@ function setupIpc(): void {
             const lang = parts[1]?.trim();
             if (tag && tag !== "all") params.set("tag", tag);
             if (lang && lang !== "all") params.set("language", lang);
-            params.set("page_size", "30");
+            params.set("page_size", "50");
           } else {
             params.set("title", q);
-            params.set("page_size", "30");
+            params.set("page_size", "50");
           }
           params.set("page_number", "1");
         }
@@ -1082,15 +1082,18 @@ function setupIpc(): void {
           items.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
         }
 
+        const totalCount = data.total ?? items.length;
+        const hasMore = items.length >= pageSize && (totalCount ? pageNumber * pageSize < totalCount : true);
+
         ev.sender.send(Ipc.SEARCH_FISH_MODELS, {
           ok: true,
           items,
-          total: data.total ?? items.length,
+          total: totalCount,
           pageNumber,
           pageSize,
           sortBy,
           append,
-          hasMore: items.length >= pageSize,
+          hasMore,
           query,
         });
       } catch (err: any) {
