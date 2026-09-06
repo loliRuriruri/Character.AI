@@ -65,6 +65,8 @@ export type AppSettings = {
   fishVoiceId: string;
   fishLatency: "low" | "balanced" | "normal";
   fishFavorites?: FishVoiceFavorite[];
+  voiceProfiles?: CharacterVoiceProfile[];
+  activeVoiceProfileId?: string;
   userName?: string;
   callName?: string;
   relationship?: string;
@@ -74,6 +76,35 @@ export type FishVoiceFavorite = {
   id: string;
   title: string;
   languages?: string[];
+};
+
+export type CharacterVoiceProfile = {
+  id: string;
+  displayName: string;
+  preferredEngine: {
+    ko?: TtsProvider;
+    ja?: TtsProvider;
+    en?: TtsProvider;
+    default?: TtsProvider;
+  };
+  fish?: {
+    referenceId?: string;
+    koReferenceId?: string;
+    jaReferenceId?: string;
+  };
+  voxcpm?: {
+    koReferenceWav?: string;
+    jaReferenceWav?: string;
+    defaultReferenceWav?: string;
+    koPromptText?: string;
+    jaPromptText?: string;
+    cloneMode?: "reference" | "ultimate";
+  };
+  irodori?: {
+    modelId?: string;
+    loraId?: string;
+    language?: "ja";
+  };
 };
 
 export const defaultSettings: AppSettings = {
@@ -103,6 +134,30 @@ export const defaultSettings: AppSettings = {
   fishVoiceId: "acc8237220d8470985ec9be6c4c480a9",
   fishLatency: "low",
   fishFavorites: [],
+  voiceProfiles: [
+    {
+      id: "default_profile",
+      displayName: "기본 미쿠 하이브리드 프로필",
+      preferredEngine: {
+        ko: "voxcpm",
+        ja: "fish",
+        default: "voxcpm",
+      },
+      fish: {
+        referenceId: "acc8237220d8470985ec9be6c4c480a9",
+        jaReferenceId: "acc8237220d8470985ec9be6c4c480a9",
+      },
+      voxcpm: {
+        defaultReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        koReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        koPromptText: "노이즈가 많은 환경에서도 제 음성 인식은 정확해요. 마스터의 속삭임도 한 마디도 놓치지 않고 들을 수 있답니다.",
+        jaReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        jaPromptText: "ノイズの多い環境でも、私の音声認識は正確です。あなたの囁き声も、一言も漏らさず拾えますよ。",
+        cloneMode: "ultimate",
+      },
+    },
+  ],
+  activeVoiceProfileId: "default_profile",
   userName: "마스터",
   callName: "마스터",
   relationship: "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",

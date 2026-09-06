@@ -1,5 +1,5 @@
 import { Ipc } from "../shared/ipc";
-import type { AppSettings, VoiceCatalog, FishVoiceFavorite } from "../shared/types";
+import type { AppSettings, VoiceCatalog, FishVoiceFavorite, CharacterVoiceProfile } from "../shared/types";
 
 const root = document.getElementById("root")!;
 root.innerHTML = `
@@ -253,6 +253,109 @@ root.innerHTML = `
       <div id="voice-status-box" style="margin-top:4px; padding:8px 12px; border-radius:8px; background:rgba(0,0,0,0.4); border:1px solid rgba(57,197,187,0.25); display:flex; align-items:center; justify-content:space-between; font-size:11px;">
         <span style="color:#8aa8b0;">보이스 로딩 상태:</span>
         <span id="voice-status-text" style="font-weight:700; color:#39c5bb;">🟢 준비 완료</span>
+      </div>
+
+      <!-- Character Voice Profile & Multi-language Routing -->
+      <div id="voice-profile-card" style="margin-top:10px; padding:12px; background:rgba(57,197,187,0.07); border:1px solid rgba(57,197,187,0.35); border-radius:10px;">
+        <div style="font-size:12.5px; font-weight:800; color:#39c5bb; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+          <span>🎭 캐릭터 보이스 프로필 (언어별 스마트 라우팅)</span>
+          <span style="font-size:9.5px; background:rgba(57,197,187,0.2); color:#39c5bb; padding:2px 8px; border-radius:99px; font-weight:700;">KO/JA 분기</span>
+        </div>
+        <div style="font-size:10px; color:#8aa8b0; line-height:1.4; margin-bottom:8px;">
+          * 발화 언어(한국어/일본어)에 맞춰 최적화된 TTS 엔진과 Reference 음성을 실시간으로 자동 선택합니다.
+        </div>
+
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+          <label style="font-size:11px; flex:1;">활성 보이스 프로필
+            <select id="activeVoiceProfileSelect" style="width:100%; margin-top:2px;"></select>
+          </label>
+          <button id="btn-add-profile" type="button" style="height:32px; margin-top:16px; background:rgba(57,197,187,0.2); color:#39c5bb; border:1px solid rgba(57,197,187,0.4); border-radius:6px; padding:0 10px; font-size:10.5px; font-weight:700; cursor:pointer; white-space:nowrap;">+ 새 프로필</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <!-- Korean Config -->
+          <div style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(57,197,187,0.2);">
+            <div style="font-size:11px; font-weight:700; color:#39c5bb; margin-bottom:4px;">🇰🇷 한국어 (KO) 설정</div>
+            <label style="font-size:10px; margin-bottom:4px;">선호 엔진
+              <select id="profileKoEngine" style="width:100%; font-size:10.5px; padding:3px 6px;">
+                <option value="voxcpm">VoxCPM2 (RTX 5090 클론)</option>
+                <option value="fish">Fish Audio S2.1 Pro</option>
+                <option value="irodori">Irodori-TTS</option>
+                <option value="web">Web Speech</option>
+              </select>
+            </label>
+            <label style="font-size:10px;">Reference Audio / ID
+              <input id="profileKoRef" placeholder="miku_ko 또는 Fish Voice ID" style="font-size:10.5px; padding:3px 6px;" />
+            </label>
+          </div>
+
+          <!-- Japanese Config -->
+          <div style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(0,210,255,0.2);">
+            <div style="font-size:11px; font-weight:700; color:#00d2ff; margin-bottom:4px;">🇯🇵 일본어 (JA) 설정</div>
+            <label style="font-size:10px; margin-bottom:4px;">선호 엔진
+              <select id="profileJaEngine" style="width:100%; font-size:10.5px; padding:3px 6px;">
+                <option value="fish">Fish Audio S2.1 Pro</option>
+                <option value="voxcpm">VoxCPM2 (RTX 5090 클론)</option>
+                <option value="irodori">Irodori-TTS (원어민 억양)</option>
+                <option value="web">Web Speech</option>
+              </select>
+            </label>
+            <label style="font-size:10px;">Reference Audio / ID
+              <input id="profileJaRef" placeholder="Fish Voice ID 또는 WAV ID" style="font-size:10.5px; padding:3px 6px;" />
+            </label>
+          </div>
+        </div>
+
+        <div style="font-size:9.5px; color:#8aa8b0; line-height:1.4;">
+          * 선호 엔진 실패 시 기본 폴백 엔진(VoxCPM2)으로 자동 대체됩니다.
+        </div>
+      </div>
+
+      <!-- VoxCPM Reference WAV & Clone Studio -->
+      <div id="voxcpm-studio-card" style="margin-top:10px; padding:12px; background:rgba(255,107,139,0.06); border:1px solid rgba(255,107,139,0.3); border-radius:10px;">
+        <div style="font-size:12.5px; font-weight:800; color:#ff8ba7; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>🎙️ VoxCPM2 Reference Voice Studio (클론 제작)</span>
+          <span style="font-size:9.5px; background:rgba(255,107,139,0.2); color:#ff8ba7; padding:2px 8px; border-radius:99px; font-weight:700;">Zero-Shot</span>
+        </div>
+        <div style="font-size:10px; color:#8aa8b0; line-height:1.4; margin-bottom:8px;">
+          * 3~10초 길이의 깨끗한 단일 화자 오디오(WAV/MP3)와 대사(Transcript)를 등록하면 RTX 5090에서 지연 없이 즉시 음색을 복제합니다.
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button id="btn-choose-audio" type="button" class="btn-file" style="background:rgba(255,107,139,0.2); color:#ff9ab0; border-color:rgba(255,107,139,0.4); font-size:11px; padding:5px 10px; cursor:pointer; white-space:nowrap;">📂 WAV 파일 선택</button>
+            <span id="selected-audio-name" style="font-size:10px; color:#8aa8b0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+          </div>
+
+          <label style="font-size:10.5px;">보이스 식별 이름
+            <input id="studio-voice-name" placeholder="예: my_custom_miku" style="font-size:10.5px; padding:4px 8px;" />
+          </label>
+
+          <label style="font-size:10.5px;">클론 모드
+            <select id="profileCloneMode" style="width:100%; font-size:10.5px; padding:4px 8px;">
+              <option value="reference">Standard Clone (Reference WAV만 사용)</option>
+              <option value="ultimate">Ultimate Clone (Reference WAV + 대사 Transcript 정밀 매칭)</option>
+            </select>
+          </label>
+
+          <label style="font-size:10.5px;">오디오 대사 (Transcript - Ultimate Clone 시 필수)
+            <input id="studio-prompt-text" placeholder="오디오에서 말하는 정확한 대사를 입력하세요 (예: 안녕하세요! 만나서 반가워요.)" style="font-size:10.5px; padding:4px 8px;" />
+          </label>
+
+          <!-- 저작권/권한 확인 체크박스 (지침 16 & 18 준수) -->
+          <div style="display:flex; align-items:flex-start; gap:6px; margin-top:3px; padding:6px; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid rgba(255,215,0,0.25);">
+            <input id="chk-voice-auth" type="checkbox" style="margin-top:2px; cursor:pointer;" />
+            <label for="chk-voice-auth" style="font-size:9.5px; color:#ffd700; line-height:1.35; cursor:pointer;">
+              본인은 이 Reference Audio를 AI 음성 합성 및 보이스 복제에 사용할 정당한 권한이 있음을 확인합니다. (타인의 무단 음성 복제 금지)
+            </label>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:4px;">
+            <button id="btn-create-voice" type="button" class="btn-primary" style="background:#ff6b8a; border-color:#ff6b8a; font-size:11px; padding:5px 14px; cursor:pointer;">✨ 보이스 등록 및 활성화</button>
+          </div>
+
+          <div id="studio-status" style="display:none; padding:6px 10px; border-radius:6px; font-size:10.5px; text-align:center;"></div>
+        </div>
       </div>
     </div>
 
@@ -1006,6 +1109,8 @@ saveBtn.addEventListener("click", () => {
     fishVoiceId: fishVoiceIdInput ? fishVoiceIdInput.value.trim() : "",
     fishLatency: (fishLatencySelect ? fishLatencySelect.value : "low") as any,
     fishFavorites: currentFavorites,
+    voiceProfiles: localSettings.voiceProfiles,
+    activeVoiceProfileId: localSettings.activeVoiceProfileId,
   };
   window.miku.send(Ipc.SETTINGS_UPDATE, next);
   window.miku.send(Ipc.CLOSE_SETTINGS);
@@ -1065,6 +1170,7 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
 
   populateVrmModels(installedVrmList, state.settings.vrmModelPath);
   populateVrmaMotions(installedVrmaList, state.settings.vrmaMotionPath || "/models/idle_loop.vrma");
+  populateVoiceProfiles(state.settings.voiceProfiles || [], state.settings.activeVoiceProfileId);
 });
 
 const btnPreviewVoice = document.getElementById("btn-preview-voice") as HTMLButtonElement;
@@ -1239,6 +1345,13 @@ btnCreateVoice?.addEventListener("click", () => {
     return;
   }
 
+  const authChk = document.getElementById("chk-voice-auth") as HTMLInputElement | null;
+  if (authChk && !authChk.checked) {
+    alert("⚠️ Reference Audio 사용 권한 확인 체크박스에 동의해야 보이스를 등록할 수 있습니다.");
+    authChk.focus();
+    return;
+  }
+
   if (studioStatus) {
     studioStatus.style.display = "block";
     studioStatus.style.background = "rgba(57,197,187,0.15)";
@@ -1267,11 +1380,26 @@ window.miku.on(Ipc.CREATE_CUSTOM_VOICE, (res: unknown) => {
     }
     if (localSettings) {
       localSettings.ttsVoiceId = r.voice.id;
+      // Also update active voice profile if present
+      const activeProf = (localSettings.voiceProfiles || []).find((p) => p.id === localSettings?.activeVoiceProfileId);
+      if (activeProf) {
+        if (!activeProf.voxcpm) activeProf.voxcpm = {};
+        activeProf.voxcpm.koReferenceWav = r.voice.id;
+        activeProf.voxcpm.jaReferenceWav = r.voice.id;
+        if (profileCloneMode?.value === "ultimate") {
+          activeProf.voxcpm.cloneMode = "ultimate";
+          activeProf.voxcpm.koPromptText = studioPromptText?.value.trim();
+        }
+      }
     }
     if (voiceSel) {
       voiceSel.value = r.voice.id;
     }
-    window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: r.voice.id });
+    if (profileKoRef) profileKoRef.value = r.voice.id;
+    window.miku.send(Ipc.SETTINGS_UPDATE, {
+      ttsVoiceId: r.voice.id,
+      voiceProfiles: localSettings?.voiceProfiles,
+    });
     window.miku.send(Ipc.PREVIEW_VOICE, r.voice.id);
   } else {
     if (studioStatus) {
@@ -1281,4 +1409,129 @@ window.miku.on(Ipc.CREATE_CUSTOM_VOICE, (res: unknown) => {
       studioStatus.textContent = "❌ 등록 실패: " + (r?.error || "알 수 없는 오류");
     }
   }
+});
+
+// --- Character Voice Profile Management Logic ---
+const activeVoiceProfileSelect = document.getElementById("activeVoiceProfileSelect") as HTMLSelectElement | null;
+const btnAddProfile = document.getElementById("btn-add-profile") as HTMLButtonElement | null;
+const profileKoEngine = document.getElementById("profileKoEngine") as HTMLSelectElement | null;
+const profileKoRef = document.getElementById("profileKoRef") as HTMLInputElement | null;
+const profileJaEngine = document.getElementById("profileJaEngine") as HTMLSelectElement | null;
+const profileJaRef = document.getElementById("profileJaRef") as HTMLInputElement | null;
+const profileCloneMode = document.getElementById("profileCloneMode") as HTMLSelectElement | null;
+
+function populateVoiceProfiles(profiles: CharacterVoiceProfile[], activeId?: string) {
+  if (!activeVoiceProfileSelect) return;
+  activeVoiceProfileSelect.innerHTML = "";
+  for (const p of profiles) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${p.displayName} (${p.id})`;
+    if (p.id === activeId) opt.selected = true;
+    activeVoiceProfileSelect.appendChild(opt);
+  }
+  const current = profiles.find((p) => p.id === (activeId || activeVoiceProfileSelect.value));
+  if (current) {
+    updateProfileFields(current);
+  }
+}
+
+function updateProfileFields(profile: CharacterVoiceProfile) {
+  if (profileKoEngine) profileKoEngine.value = profile.preferredEngine?.ko || "voxcpm";
+  if (profileKoRef) profileKoRef.value = profile.voxcpm?.koReferenceWav || profile.fish?.koReferenceId || "";
+  if (profileJaEngine) profileJaEngine.value = profile.preferredEngine?.ja || "fish";
+  if (profileJaRef) profileJaRef.value = profile.fish?.jaReferenceId || profile.voxcpm?.jaReferenceWav || "";
+  if (profileCloneMode) profileCloneMode.value = profile.voxcpm?.cloneMode || "reference";
+}
+
+function syncCurrentProfileFromUi() {
+  if (!localSettings || !activeVoiceProfileSelect) return;
+  const activeId = activeVoiceProfileSelect.value;
+  const list = localSettings.voiceProfiles || [];
+  const idx = list.findIndex((p) => p.id === activeId);
+  if (idx < 0) return;
+
+  const p = list[idx];
+  const koEng = (profileKoEngine?.value || "voxcpm") as any;
+  const jaEng = (profileJaEngine?.value || "fish") as any;
+  const koRef = profileKoRef?.value.trim() || "";
+  const jaRef = profileJaRef?.value.trim() || "";
+  const cloneMode = (profileCloneMode?.value || "reference") as any;
+
+  p.preferredEngine = {
+    ...p.preferredEngine,
+    ko: koEng,
+    ja: jaEng,
+  };
+
+  if (!p.voxcpm) p.voxcpm = {};
+  if (!p.fish) p.fish = {};
+
+  if (koEng === "voxcpm" && koRef) p.voxcpm.koReferenceWav = koRef;
+  if (koEng === "fish" && koRef) p.fish.koReferenceId = koRef;
+  if (jaEng === "voxcpm" && jaRef) p.voxcpm.jaReferenceWav = jaRef;
+  if (jaEng === "fish" && jaRef) p.fish.jaReferenceId = jaRef;
+  p.voxcpm.cloneMode = cloneMode;
+
+  localSettings.voiceProfiles = list;
+  localSettings.activeVoiceProfileId = activeId;
+  window.miku.send(Ipc.SETTINGS_UPDATE, {
+    voiceProfiles: list,
+    activeVoiceProfileId: activeId,
+  });
+}
+
+activeVoiceProfileSelect?.addEventListener("change", () => {
+  if (!localSettings) return;
+  const chosenId = activeVoiceProfileSelect.value;
+  localSettings.activeVoiceProfileId = chosenId;
+  const p = (localSettings.voiceProfiles || []).find((x) => x.id === chosenId);
+  if (p) {
+    updateProfileFields(p);
+  }
+  window.miku.send(Ipc.SETTINGS_UPDATE, { activeVoiceProfileId: chosenId });
+});
+
+profileKoEngine?.addEventListener("change", syncCurrentProfileFromUi);
+profileKoRef?.addEventListener("change", syncCurrentProfileFromUi);
+profileJaEngine?.addEventListener("change", syncCurrentProfileFromUi);
+profileJaRef?.addEventListener("change", syncCurrentProfileFromUi);
+profileCloneMode?.addEventListener("change", syncCurrentProfileFromUi);
+
+btnAddProfile?.addEventListener("click", () => {
+  const name = prompt("새 보이스 프로필 이름을 입력하세요:", "새 캐릭터 프로필");
+  if (!name || !name.trim()) return;
+  if (!localSettings) return;
+
+  const newId = "profile_" + Date.now();
+  const newProfile: CharacterVoiceProfile = {
+    id: newId,
+    displayName: name.trim(),
+    preferredEngine: {
+      ko: "voxcpm",
+      ja: "fish",
+      en: "fish",
+      default: "voxcpm",
+    },
+    fish: {
+      referenceId: localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9",
+      koReferenceId: localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9",
+      jaReferenceId: "6717a74323274cb296ea9a0da654c977",
+    },
+    voxcpm: {
+      koReferenceWav: localSettings.ttsVoiceId || "nilou",
+      jaReferenceWav: localSettings.ttsVoiceId || "nilou",
+      cloneMode: "reference",
+    },
+  };
+
+  const list = [...(localSettings.voiceProfiles || []), newProfile];
+  localSettings.voiceProfiles = list;
+  localSettings.activeVoiceProfileId = newId;
+
+  populateVoiceProfiles(list, newId);
+  window.miku.send(Ipc.SETTINGS_UPDATE, {
+    voiceProfiles: list,
+    activeVoiceProfileId: newId,
+  });
 });

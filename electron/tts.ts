@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AppSettings, TtsStatus } from "../src/shared/types";
+import type { AppSettings, TtsStatus, CharacterVoiceProfile, TtsProvider } from "../src/shared/types";
 import { sanitizeSpeechForTts } from "../src/core/response/TtsSanitizer";
 import { resolveVoiceWav } from "./voices";
 
@@ -552,4 +552,101 @@ export class FishAudioTts {
       throw err;
     }
   }
+}
+
+export type DetectedLanguage = "ko" | "ja" | "en" | "zh" | "other";
+
+export function detectLanguage(text: string): DetectedLanguage {
+  const trimmed = text.trim();
+  if (!trimmed) return "other";
+
+  const hangulMatches = trimmed.match(/[\uAC00-\uD7AF\u1100-\u11FF]/g) || [];
+  const kanaMatches = trimmed.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || [];
+  const hanziMatches = trimmed.match(/[\u4E00-\u9FFF]/g) || [];
+  const latinMatches = trimmed.match(/[a-zA-Z]/g) || [];
+
+  const hangulCount = hangulMatches.length;
+  const kanaCount = kanaMatches.length;
+  const hanziCount = hanziMatches.length;
+  const latinCount = latinMatches.length;
+
+  // If there's Kana, it's definitely Japanese (even if it contains Kanji)
+  if (kanaCount > 0) return "ja";
+  // If there's Hangul, it's Korean
+  if (hangulCount > 0) return "ko";
+  // If only Hanzi without Kana/Hangul, it's Chinese
+  if (hanziCount > 0 && kanaCount === 0 && hangulCount === 0) return "zh";
+  // If mostly Latin English
+  if (latinCount > 0 && hangulCount === 0 && kanaCount === 0 && hanziCount === 0) return "en";
+
+  return "other";
+}
+
+export function resolveVoiceProfileConfig(
+  profile: CharacterVoiceProfile | undefined,
+  text: string,
+  baseSettings: AppSettings
+): {
+  engine: TtsProvider;
+  effectiveSettings: AppSettings;
+  detectedLang: DetectedLanguage;
+} {
+  const detectedLang = detectLanguage(text);
+
+  if (!profile) {
+    return {
+      engine: baseSettings.ttsProvider,
+      effectiveSettings: baseSettings,
+      detectedLang,
+    };
+  }
+
+  // Determine target engine based on detected language
+  let engine: TtsProvider = profile.preferredEngine?.default || baseSettings.ttsProvider;
+  if (detectedLang === "ko" && profile.preferredEngine?.ko) {
+    engine = profile.preferredEngine.ko;
+  } else if (detectedLang === "ja" && profile.preferredEngine?.ja) {
+    engine = profile.preferredEngine.ja;
+  } else if (detectedLang === "en" && profile.preferredEngine?.en) {
+    engine = profile.preferredEngine.en;
+  }
+
+  // Clone settings and apply language-specific parameters
+  const effective: AppSettings = { ...baseSettings, ttsProvider: engine };
+
+  if (engine === "voxcpm" && profile.voxcpm) {
+    if (detectedLang === "ko") {
+      const koRef = profile.voxcpm.koReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
+      effective.voxcpmReferenceWav = koRef;
+      effective.ttsVoiceId = koRef;
+      if (profile.voxcpm.koPromptText) {
+        effective.voxcpmPromptText = profile.voxcpm.koPromptText;
+      }
+    } else if (detectedLang === "ja") {
+      const jaRef = profile.voxcpm.jaReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
+      effective.voxcpmReferenceWav = jaRef;
+      effective.ttsVoiceId = jaRef;
+      if (profile.voxcpm.jaPromptText) {
+        effective.voxcpmPromptText = profile.voxcpm.jaPromptText;
+      }
+    } else {
+      const defRef = profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
+      effective.voxcpmReferenceWav = defRef;
+      effective.ttsVoiceId = defRef;
+    }
+  } else if (engine === "fish" && profile.fish) {
+    if (detectedLang === "ko" && profile.fish.koReferenceId) {
+      effective.fishVoiceId = profile.fish.koReferenceId;
+    } else if (detectedLang === "ja" && profile.fish.jaReferenceId) {
+      effective.fishVoiceId = profile.fish.jaReferenceId;
+    } else if (profile.fish.referenceId) {
+      effective.fishVoiceId = profile.fish.referenceId;
+    }
+  } else if (engine === "irodori" && profile.irodori) {
+    if (profile.irodori.loraId) {
+      effective.irodoriLoraId = profile.irodori.loraId;
+    }
+  }
+
+  return { engine, effectiveSettings: effective, detectedLang };
 }

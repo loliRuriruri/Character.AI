@@ -8,7 +8,7 @@ import { SrsEngine } from "./srs";
 import { defaultSettings, type AppSettings, type AppState, type ChatMessage, type TtsStatus, type GestureName, type ViewMode } from "../src/shared/types";
 import { completeChat, LlmError } from "./llm";
 import { loadSettings, saveSettings } from "./settings";
-import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, type TtsPlay } from "./tts";
+import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, resolveVoiceProfileConfig, type TtsPlay } from "./tts";
 import { applyVoiceSelection, loadVoiceCatalog, voiceById, resolveVoiceWav, addVoiceToCatalog } from "./voices";
 import { CharacterCore } from "../src/core/character/CharacterCore";
 import { PromptComposer } from "../src/core/prompt/PromptComposer";
@@ -537,11 +537,28 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
       }
       try {
         const synthStart = performance.now();
-        const play = settings.ttsProvider === "fish"
-        ? await fishTts.speak(settings, cleanSpoken)
-        : settings.ttsProvider === "irodori" 
-        ? await irodoriTts.speak(settings, cleanSpoken)
-        : await tts.speak(settings, cleanSpoken);
+        const activeProfile = (settings.voiceProfiles || []).find((p) => p.id === settings.activeVoiceProfileId);
+        const { engine, effectiveSettings, detectedLang } = resolveVoiceProfileConfig(activeProfile, cleanSpoken, settings);
+
+        let play: TtsPlay;
+        try {
+          if (engine === "fish") {
+            play = await fishTts.speak(effectiveSettings, cleanSpoken);
+          } else if (engine === "irodori") {
+            play = await irodoriTts.speak(effectiveSettings, cleanSpoken);
+          } else {
+            play = await tts.speak(effectiveSettings, cleanSpoken);
+          }
+        } catch (engineErr) {
+          // Fallback to VoxCPM if preferred engine fails
+          if (engine !== "voxcpm") {
+            console.warn(`[TTS] ${engine} failed for [${detectedLang}], falling back to VoxCPM:`, engineErr);
+            play = await tts.speak(settings, cleanSpoken);
+          } else {
+            throw engineErr;
+          }
+        }
+
         const synthDurationMs = Math.round(performance.now() - synthStart);
         broadcastTtsPlay(play, segmentId);
 
@@ -551,7 +568,7 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
           broadcast(Ipc.TTS_TIMING, {
             totalMs: totalLatencyMs,
             synthMs: synthDurationMs,
-            provider: settings.ttsProvider,
+            provider: engine,
           });
         }
       } catch (err) {
@@ -1152,26 +1169,44 @@ function setupIpc(): void {
 
         const title = (modelData.title || data.title || data.modelId).trim();
         const safeFolderName = title.replace(/[/\\?%*:|"<>]/g, "_").trim() || data.modelId;
-        const sample = modelData.samples?.[0];
-        const audioUrl = sample?.audio;
-        const transcriptText = sample?.text || modelData.default_text || "";
+        const samples = Array.isArray(modelData.samples) && modelData.samples.length > 0
+          ? modelData.samples
+          : [];
 
-        if (!audioUrl) {
+        const primarySample = samples[0];
+        const primaryAudioUrl = primarySample?.audio;
+        if (!primaryAudioUrl) {
           throw new Error("다운로드 가능한 오디오 샘플 URL이 없습니다.");
         }
-
-        const audioResp = await fetch(audioUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-        if (!audioResp.ok) throw new Error("오디오 파일 다운로드 실패: " + audioResp.status);
-        const audioBuffer = Buffer.from(await audioResp.arrayBuffer());
 
         const downloadsDir = path.join(app.getPath("downloads"), "MikuChat_Voices", safeFolderName);
         fs.mkdirSync(downloadsDir, { recursive: true });
 
-        const audioFilePath = path.join(downloadsDir, `${safeFolderName}.mp3`);
-        fs.writeFileSync(audioFilePath, audioBuffer);
+        const downloadedFiles: string[] = [];
 
-        const transcriptPath = path.join(downloadsDir, "transcript.txt");
-        fs.writeFileSync(transcriptPath, transcriptText, "utf8");
+        // Download all samples provided by the creator
+        for (let i = 0; i < samples.length; i++) {
+          const s = samples[i];
+          if (!s?.audio) continue;
+          try {
+            const audioResp = await fetch(s.audio, { headers: { "User-Agent": "Mozilla/5.0" } });
+            if (!audioResp.ok) continue;
+            const audioBuffer = Buffer.from(await audioResp.arrayBuffer());
+            const fileName = i === 0 ? `${safeFolderName}.mp3` : `${safeFolderName}_sample_${i + 1}.mp3`;
+            const textFileName = i === 0 ? "transcript.txt" : `transcript_sample_${i + 1}.txt`;
+            const sText = s.text || modelData.default_text || "";
+
+            const targetFilePath = path.join(downloadsDir, fileName);
+            fs.writeFileSync(targetFilePath, audioBuffer);
+            fs.writeFileSync(path.join(downloadsDir, textFileName), sText, "utf8");
+            downloadedFiles.push(fileName);
+          } catch (sampleErr) {
+            console.warn(`[Download] Sample ${i} download error:`, sampleErr);
+          }
+        }
+
+        const audioFilePath = path.join(downloadsDir, `${safeFolderName}.mp3`);
+        const transcriptText = primarySample?.text || modelData.default_text || "";
 
         const metaPath = path.join(downloadsDir, "voice_set_info.json");
         fs.writeFileSync(
@@ -1186,6 +1221,8 @@ function setupIpc(): void {
               like_count: modelData.like_count || 0,
               task_count: modelData.task_count || 0,
               audioFile: `${safeFolderName}.mp3`,
+              audioFiles: downloadedFiles,
+              sampleCount: downloadedFiles.length,
               transcript: transcriptText,
               downloadedAt: new Date().toISOString(),
             },
@@ -1231,8 +1268,8 @@ function setupIpc(): void {
     }
 
     try {
-      const rawId = data.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
-      const safeId = rawId || `custom_${Date.now()}`;
+      const sanitized = data.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "").replace(/_{2,}/g, "_");
+      const safeId = sanitized || `voice_${Date.now()}`;
       const dstDir = path.join(process.cwd(), "assets", "tts", "voices", safeId);
       const pythonExe = toWindowlessPython(settings.voxcpmPythonPath || "C:\\Users\\a4jud\\VoxCPM\\.venv\\Scripts\\python.exe");
       const scriptPath = path.join(process.cwd(), "scripts", "add_voice.py");
@@ -1247,10 +1284,16 @@ function setupIpc(): void {
         promptText,
       ], {
         windowsHide: true,
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+        },
       });
 
       let stdout = "";
-      proc.stdout.on("data", (d) => { stdout += d.toString(); });
+      proc.stdout.setEncoding("utf8");
+      proc.stdout.on("data", (d) => { stdout += d; });
       proc.on("close", (code) => {
         if (code === 0) {
           try {
