@@ -57,8 +57,28 @@ export function testVoiceFavorites() {
     const params = new URLSearchParams();
     if (typeof query === "object" && query !== null) {
       const opt = query as { tag?: string; language?: string; title?: string; pageSize?: number };
-      if (opt.tag && opt.tag !== "all") params.set("tag", opt.tag);
-      if (opt.language && opt.language !== "all") params.set("language", opt.language);
+      if (opt.tag === "voice-actor") {
+        if (opt.language === "ko") {
+          params.set("title", "성우");
+          params.set("language", "ko");
+        } else if (opt.language === "ja") {
+          params.set("title", "声優");
+          params.set("language", "ja");
+        } else if (opt.language === "zh") {
+          params.set("title", "配音");
+          params.set("language", "zh");
+        } else if (opt.language === "en") {
+          params.set("title", "Voice Actor");
+          params.set("language", "en");
+        } else {
+          params.set("title", "CV");
+        }
+      } else if (opt.tag && opt.tag !== "all") {
+        params.set("tag", opt.tag);
+        if (opt.language && opt.language !== "all") params.set("language", opt.language);
+      } else {
+        if (opt.language && opt.language !== "all") params.set("language", opt.language);
+      }
       if (opt.title) params.set("title", opt.title);
       params.set("page_size", String(opt.pageSize || 16));
     } else {
@@ -86,6 +106,14 @@ export function testVoiceFavorites() {
   const gameKoUrl = buildQueryUrl({ tag: "gaming", language: "ko", pageSize: 16 });
   assert(gameKoUrl.includes("tag=gaming"));
   assert(gameKoUrl.includes("language=ko"));
+
+  const vaKoUrl = buildQueryUrl({ tag: "voice-actor", language: "ko" });
+  assert(vaKoUrl.includes("title=%EC%84%B1%EC%9A%B0") || vaKoUrl.includes("title=성우"));
+  assert(vaKoUrl.includes("language=ko"));
+
+  const vaJaUrl = buildQueryUrl({ tag: "voice-actor", language: "ja" });
+  assert(vaJaUrl.includes("title=%E5%A3%B0%E5%84%AA") || vaJaUrl.includes("title=声優"));
+  assert(vaJaUrl.includes("language=ja"));
 
   const allUrl = buildQueryUrl({ tag: "all", language: "all", pageSize: 16 });
   assert(!allUrl.includes("tag="));

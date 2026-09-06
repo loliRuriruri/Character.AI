@@ -169,6 +169,15 @@ root.innerHTML = `
               </div>
             </div>
 
+            <!-- 장르/카테고리 탭 버튼 바 (게임 / 애니 / 성우 / 캐릭터 / 전체) -->
+            <div id="fish-genre-tabs" style="display:flex; gap:4px; margin-bottom:7px; overflow-x:auto; padding-bottom:2px;">
+              <button type="button" class="fish-tab-btn active" data-genre="gaming" style="padding:4px 9px; font-size:10.5px; font-weight:700; border-radius:6px; cursor:pointer; border:1px solid #00d2ff; background:#00d2ff; color:#06141d; white-space:nowrap; transition:all 0.15s;">🎮 게임</button>
+              <button type="button" class="fish-tab-btn" data-genre="anime" style="padding:4px 9px; font-size:10.5px; font-weight:700; border-radius:6px; cursor:pointer; border:1px solid rgba(0,210,255,0.3); background:rgba(0,210,255,0.1); color:#e8fbff; white-space:nowrap; transition:all 0.15s;">📺 애니</button>
+              <button type="button" class="fish-tab-btn" data-genre="voice-actor" style="padding:4px 9px; font-size:10.5px; font-weight:700; border-radius:6px; cursor:pointer; border:1px solid rgba(255,107,139,0.4); background:rgba(255,107,139,0.12); color:#ff9ab0; white-space:nowrap; transition:all 0.15s;">🎙️ 성우 (VA)</button>
+              <button type="button" class="fish-tab-btn" data-genre="character-voice" style="padding:4px 9px; font-size:10.5px; font-weight:700; border-radius:6px; cursor:pointer; border:1px solid rgba(0,210,255,0.3); background:rgba(0,210,255,0.1); color:#e8fbff; white-space:nowrap; transition:all 0.15s;">🎭 캐릭터</button>
+              <button type="button" class="fish-tab-btn" data-genre="all" style="padding:4px 9px; font-size:10.5px; font-weight:700; border-radius:6px; cursor:pointer; border:1px solid rgba(0,210,255,0.3); background:rgba(0,210,255,0.1); color:#e8fbff; white-space:nowrap; transition:all 0.15s;">🌐 전체</button>
+            </div>
+
             <!-- 장르 & 국적 & 정렬 필터 바 -->
             <div style="display:flex; gap:4px; align-items:center; margin-bottom:5px; flex-wrap:wrap;">
               <div style="flex:1; min-width:85px; display:flex; flex-direction:column; gap:2px;">
@@ -176,6 +185,7 @@ root.innerHTML = `
                 <select id="fish-filter-genre" style="width:100%; font-size:10px; padding:2px 4px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
                   <option value="gaming">🎮 게임 (Gaming)</option>
                   <option value="anime">📺 애니 (Anime)</option>
+                  <option value="voice-actor">🎙️ 성우 (Voice Actor / CV)</option>
                   <option value="character-voice">🎭 캐릭터/버튜버</option>
                   <option value="all">🌐 전체 장르 (All)</option>
                 </select>
@@ -573,8 +583,22 @@ function updateCardFavoriteButtons() {
   });
 }
 
-function getGenreBadge(tags: string[] = []): string {
+function getGenreBadge(tags: string[] = [], title: string = ""): string {
   const t = tags.map((x) => x.toLowerCase());
+  const tit = title.toLowerCase();
+
+  if (
+    tit.includes("성우") ||
+    tit.includes("声優") ||
+    tit.includes("配音") ||
+    tit.includes("voice actor") ||
+    tit.includes("cv") ||
+    t.includes("voice-actor") ||
+    t.includes("voice actor") ||
+    t.includes("seiyuu")
+  ) {
+    return `<span style="background:rgba(255,107,139,0.22); color:#ff8fa3; border:1px solid rgba(255,107,139,0.45); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">🎙️ 성우</span>`;
+  }
   if (t.includes("gaming") || t.includes("game") || t.includes("games")) {
     return `<span style="background:rgba(0,210,255,0.22); color:#7ae7ff; border:1px solid rgba(0,210,255,0.45); border-radius:3px; padding:1px 4px; font-size:8.5px; font-weight:700; margin-right:3px;">🎮 게임</span>`;
   }
@@ -729,7 +753,45 @@ btnRefreshRanking?.addEventListener("click", () => {
     }
   }
 });
-fishFilterGenre?.addEventListener("change", () => triggerRankingQuery(1, false));
+function setActiveGenreTab(genre: string) {
+  document.querySelectorAll(".fish-tab-btn").forEach((b) => {
+    const el = b as HTMLButtonElement;
+    const isTarget = el.dataset.genre === genre;
+    if (isTarget) {
+      el.style.background = "#00d2ff";
+      el.style.color = "#06141d";
+      el.style.borderColor = "#00d2ff";
+      el.classList.add("active");
+    } else {
+      if (el.dataset.genre === "voice-actor") {
+        el.style.background = "rgba(255,107,139,0.12)";
+        el.style.color = "#ff9ab0";
+        el.style.borderColor = "rgba(255,107,139,0.4)";
+      } else {
+        el.style.background = "rgba(0,210,255,0.1)";
+        el.style.color = "#e8fbff";
+        el.style.borderColor = "rgba(0,210,255,0.3)";
+      }
+      el.classList.remove("active");
+    }
+  });
+  if (fishFilterGenre && fishFilterGenre.value !== genre) {
+    fishFilterGenre.value = genre;
+  }
+}
+
+document.querySelectorAll(".fish-tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const genre = (btn as HTMLElement).dataset.genre || "gaming";
+    setActiveGenreTab(genre);
+    triggerRankingQuery(1, false);
+  });
+});
+
+fishFilterGenre?.addEventListener("change", () => {
+  setActiveGenreTab(fishFilterGenre.value);
+  triggerRankingQuery(1, false);
+});
 fishFilterLang?.addEventListener("change", () => triggerRankingQuery(1, false));
 fishFilterSort?.addEventListener("change", () => {
   if (lastQueryType === "search" && lastSearchText) {
@@ -815,7 +877,7 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
 
     info.innerHTML = `
       <div style="display:flex; align-items:center; gap:3px;">
-        ${getGenreBadge(item.tags)}
+        ${getGenreBadge(item.tags, item.title)}
         <span style="font-weight:700; color:#e8fbff; max-width:125px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title}</span>
         <span style="color:#8aa8b0; font-size:9px;">[${(item.languages || []).join(",")}]</span>
       </div>

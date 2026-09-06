@@ -1035,8 +1035,28 @@ function setupIpc(): void {
             pageSize?: number;
             append?: boolean;
           };
-          if (opt.tag && opt.tag !== "all") params.set("tag", opt.tag);
-          if (opt.language && opt.language !== "all") params.set("language", opt.language);
+          if (opt.tag === "voice-actor") {
+            if (opt.language === "ko") {
+              params.set("title", "성우");
+              params.set("language", "ko");
+            } else if (opt.language === "ja") {
+              params.set("title", "声優");
+              params.set("language", "ja");
+            } else if (opt.language === "zh") {
+              params.set("title", "配音");
+              params.set("language", "zh");
+            } else if (opt.language === "en") {
+              params.set("title", "Voice Actor");
+              params.set("language", "en");
+            } else {
+              params.set("title", "CV");
+            }
+          } else if (opt.tag && opt.tag !== "all") {
+            params.set("tag", opt.tag);
+            if (opt.language && opt.language !== "all") params.set("language", opt.language);
+          } else {
+            if (opt.language && opt.language !== "all") params.set("language", opt.language);
+          }
           if (opt.title) params.set("title", opt.title);
           if (opt.sortBy === "downloads") {
             params.set("sort_by", "task_count");
