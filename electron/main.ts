@@ -32,6 +32,7 @@ let settingsWin: BrowserWindow | null = null;
 let settings: AppSettings = { ...defaultSettings };
 let busy = false;
 let currentAbortController: AbortController | null = null;
+let currentGenerationId = 0;
 
 const characterCore = new CharacterCore();
 const sceneStateManager = new SceneStateManager();
@@ -425,6 +426,7 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
   }
   currentAbortController = new AbortController();
   const abortSignal = currentAbortController.signal;
+  const generationId = ++currentGenerationId;
 
   busy = true;
   state.isThinking = true;
@@ -538,10 +540,14 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
       if (ttsPromiseQueue.length > 0) {
         await ttsPromiseQueue[ttsPromiseQueue.length - 1].catch(() => {});
       }
+      if (abortSignal.aborted || generationId !== currentGenerationId) return;
+
       try {
         const synthStart = performance.now();
         const activeProfile = (settings.voiceProfiles || []).find((p) => p.id === settings.activeVoiceProfileId);
         const { engine, effectiveSettings, detectedLang } = resolveVoiceProfileConfig(activeProfile, cleanSpoken, settings);
+
+        if (abortSignal.aborted || generationId !== currentGenerationId) return;
 
         let play: TtsPlay;
         try {
@@ -561,6 +567,8 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
             throw engineErr;
           }
         }
+
+        if (abortSignal.aborted || generationId !== currentGenerationId) return;
 
         const synthDurationMs = Math.round(performance.now() - synthStart);
         broadcastTtsPlay(play, segmentId);
@@ -605,11 +613,15 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
           imageBase64,
           signal: abortSignal,
           onDelta: (chunk) => {
+            if (abortSignal.aborted || generationId !== currentGenerationId) return;
             firstTokenReceived = true;
             accumulated += chunk;
-            broadcast(Ipc.LLM_DELTA, chunk);
 
-            const { completedActions, speechChunk } = actionSpanBuffer.processDelta(chunk);
+            const { completedActions, speechChunk, displayDelta } = actionSpanBuffer.processDelta(chunk);
+
+            if (displayDelta) {
+              broadcast(Ipc.LLM_DELTA, displayDelta);
+            }
 
             if (completedActions.length > 0) {
               handleActionCues(completedActions, speechChunk);
@@ -1436,6 +1448,7 @@ function setupIpc(): void {
   });
 
   ipcMain.on(Ipc.CLEAR_HISTORY, () => {
+    currentGenerationId++;
     if (currentAbortController) {
       try { currentAbortController.abort(); } catch {}
       currentAbortController = null;

@@ -603,73 +603,51 @@ export function resolveVoiceProfileConfig(
 } {
   const detectedLang = detectLanguage(text);
 
+  // Unified Single Voice Mode:
+  // Strictly maintain a single active engine and voice identity across all languages in a session.
+  // Language-based cross-engine switching is removed to prevent tone destruction and latency spikes.
+  const engine: TtsProvider = baseSettings.ttsProvider || profile?.preferredEngine?.default || "voxcpm";
+
   if (!profile) {
     return {
-      engine: baseSettings.ttsProvider,
-      effectiveSettings: baseSettings,
+      engine,
+      effectiveSettings: { ...baseSettings, ttsProvider: engine },
       detectedLang,
     };
   }
 
-  // Determine target engine based on detected language
-  let engine: TtsProvider = profile.preferredEngine?.default || baseSettings.ttsProvider;
-  if (detectedLang === "ko" && profile.preferredEngine?.ko) {
-    engine = profile.preferredEngine.ko;
-  } else if (detectedLang === "ja" && profile.preferredEngine?.ja) {
-    engine = profile.preferredEngine.ja;
-  } else if (detectedLang === "en" && profile.preferredEngine?.en) {
-    engine = profile.preferredEngine.en;
-  }
-
-  // Clone settings and apply language-specific parameters
+  // Clone settings and apply consistent voice parameters for the active engine
   const effective: AppSettings = { ...baseSettings, ttsProvider: engine };
 
   if (engine === "voxcpm" && profile.voxcpm) {
-    if (detectedLang === "ko") {
-      const koRef = profile.voxcpm.koReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = resolveVoiceWav(koRef);
-      effective.ttsVoiceId = koRef;
-      if (profile.voxcpm.koPromptText) {
-        effective.voxcpmPromptText = profile.voxcpm.koPromptText;
-      } else {
-        const catVoice = voiceById(koRef);
-        if (catVoice?.promptText) {
-          effective.voxcpmPromptText = catVoice.promptText;
-        }
-      }
-    } else if (detectedLang === "ja") {
-      const jaRef = profile.voxcpm.jaReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = resolveVoiceWav(jaRef);
-      effective.ttsVoiceId = jaRef;
-      if (profile.voxcpm.jaPromptText) {
-        effective.voxcpmPromptText = profile.voxcpm.jaPromptText;
-      } else {
-        const catVoice = voiceById(jaRef);
-        if (catVoice?.promptText) {
-          effective.voxcpmPromptText = catVoice.promptText;
-        }
-      }
+    // Single unified reference voice across all languages to preserve speaker identity
+    const refWav = profile.voxcpm.defaultReferenceWav
+      || profile.voxcpm.koReferenceWav
+      || profile.voxcpm.jaReferenceWav
+      || baseSettings.voxcpmReferenceWav;
+    effective.voxcpmReferenceWav = resolveVoiceWav(refWav);
+    effective.ttsVoiceId = refWav;
+
+    const promptText = profile.voxcpm.koPromptText || profile.voxcpm.jaPromptText;
+    if (promptText) {
+      effective.voxcpmPromptText = promptText;
     } else {
-      const defRef = profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = resolveVoiceWav(defRef);
-      effective.ttsVoiceId = defRef;
-      const catVoice = voiceById(defRef);
+      const catVoice = voiceById(refWav);
       if (catVoice?.promptText) {
         effective.voxcpmPromptText = catVoice.promptText;
       }
     }
   } else if (engine === "fish") {
-    let fishId = baseSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
-    if (profile.fish) {
-      if (detectedLang === "ko" && isValidFishVoiceId(profile.fish.koReferenceId)) {
-        fishId = profile.fish.koReferenceId!;
-      } else if (detectedLang === "ja" && isValidFishVoiceId(profile.fish.jaReferenceId)) {
-        fishId = profile.fish.jaReferenceId!;
-      } else if (isValidFishVoiceId(profile.fish.referenceId)) {
-        fishId = profile.fish.referenceId!;
-      }
+    // Single unified Fish Audio voice ID across all languages
+    let fishId = baseSettings.fishVoiceId;
+    if (isValidFishVoiceId(profile.fish?.referenceId)) {
+      fishId = profile.fish!.referenceId!;
+    } else if (isValidFishVoiceId(profile.fish?.koReferenceId)) {
+      fishId = profile.fish!.koReferenceId!;
+    } else if (isValidFishVoiceId(profile.fish?.jaReferenceId)) {
+      fishId = profile.fish!.jaReferenceId!;
     }
-    effective.fishVoiceId = fishId;
+    effective.fishVoiceId = fishId || "acc8237220d8470985ec9be6c4c480a9";
   } else if (engine === "irodori" && profile.irodori) {
     if (profile.irodori.loraId) {
       effective.irodoriLoraId = profile.irodori.loraId;

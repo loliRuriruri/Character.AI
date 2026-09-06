@@ -60,13 +60,13 @@ export function testVoiceProfile() {
     },
   };
 
-  const baseSettings: AppSettings = {
+  const baseVoxSettings: AppSettings = {
     ...defaultSettings,
-    ttsProvider: "web",
+    ttsProvider: "voxcpm",
   };
 
-  // 2A. Korean Text Routing -> Should select VoxCPM + koReferenceWav + Ultimate clone prompt
-  const resKo = resolveVoiceProfileConfig(mockProfile, "오늘 날씨가 정말 화창하고 좋네요!", baseSettings);
+  // 2A. Korean Text in VoxCPM -> Keeps VoxCPM + unified referenceWav
+  const resKo = resolveVoiceProfileConfig(mockProfile, "오늘 날씨가 정말 화창하고 좋네요!", baseVoxSettings);
   if (resKo.engine !== "voxcpm") {
     throw new Error(`KO routing engine expected 'voxcpm', got '${resKo.engine}'`);
   }
@@ -76,44 +76,39 @@ export function testVoiceProfile() {
   if (resKo.effectiveSettings.voxcpmPromptText !== "안녕하세요 반갑습니다") {
     throw new Error(`KO promptText mismatch: ${resKo.effectiveSettings.voxcpmPromptText}`);
   }
-  console.log("   ✓ Korean -> VoxCPM Ultimate Clone routing passed.");
+  console.log("   ✓ Korean -> VoxCPM Unified Single Voice passed.");
 
-  // 2B. Japanese Text Routing -> Should select Fish Audio + jaReferenceId
-  const resJa = resolveVoiceProfileConfig(mockProfile, "マスター、今日も一日お疲れ様でした！", baseSettings);
-  if (resJa.engine !== "fish") {
-    throw new Error(`JA routing engine expected 'fish', got '${resJa.engine}'`);
+  // 2B. Japanese Text in VoxCPM -> Also stays on VoxCPM (Unified Single Voice Mode: No tone drift/engine swap!)
+  const resJaVox = resolveVoiceProfileConfig(mockProfile, "マスター、今日も一日お疲れ様でした！", baseVoxSettings);
+  if (resJaVox.engine !== "voxcpm") {
+    throw new Error(`JA routing in VoxCPM mode expected 'voxcpm', got '${resJaVox.engine}'`);
   }
-  if (resJa.effectiveSettings.fishVoiceId !== "6717a74323274cb296ea9a0da654c977") {
-    throw new Error(`JA fishVoiceId mismatch: ${resJa.effectiveSettings.fishVoiceId}`);
+  if (resJaVox.effectiveSettings.ttsVoiceId !== "miku_korean_clean") {
+    throw new Error(`JA voiceId in VoxCPM mode expected 'miku_korean_clean', got '${resJaVox.effectiveSettings.ttsVoiceId}'`);
   }
-  console.log("   ✓ Japanese -> Fish Audio S2.1 routing passed.");
+  console.log("   ✓ Japanese in VoxCPM -> Unified Single Voice (zero engine swap latency) passed.");
 
-  // 2C. Fallback without profile -> Should return base settings provider
-  const resFallback = resolveVoiceProfileConfig(undefined, "안녕하세요", baseSettings);
-  if (resFallback.engine !== "web") {
-    throw new Error(`Fallback engine expected 'web', got '${resFallback.engine}'`);
+  // 2C. Japanese Text in Fish Audio mode -> Stays on Fish Audio with unified ID
+  const baseFishSettings: AppSettings = {
+    ...defaultSettings,
+    ttsProvider: "fish",
+    fishVoiceId: "6717a74323274cb296ea9a0da654c977",
+  };
+  const resJaFish = resolveVoiceProfileConfig(mockProfile, "マスター、今日も一日お疲れ様でした！", baseFishSettings);
+  if (resJaFish.engine !== "fish") {
+    throw new Error(`JA routing in Fish mode expected 'fish', got '${resJaFish.engine}'`);
+  }
+  if (!resJaFish.effectiveSettings.fishVoiceId) {
+    throw new Error(`JA fishVoiceId missing`);
+  }
+  console.log("   ✓ Japanese in Fish Audio -> Unified Single Voice passed.");
+
+  // 2D. Fallback without profile -> Should return base settings provider
+  const resFallback = resolveVoiceProfileConfig(undefined, "안녕하세요", baseVoxSettings);
+  if (resFallback.engine !== "voxcpm") {
+    throw new Error(`Fallback engine expected 'voxcpm', got '${resFallback.engine}'`);
   }
   console.log("   ✓ Default Fallback without Profile passed.");
 
-  // 2D. Profile with Irodori Japanese preference
-  const irodoriProfile: CharacterVoiceProfile = {
-    id: "miku_irodori",
-    displayName: "미쿠 이로도리",
-    preferredEngine: {
-      ko: "voxcpm",
-      ja: "irodori",
-      default: "voxcpm",
-    },
-    irodori: {
-      loraId: "miku_v1_lora",
-      language: "ja",
-    },
-  };
-  const resIrodori = resolveVoiceProfileConfig(irodoriProfile, "こんにちは！", baseSettings);
-  if (resIrodori.engine !== "irodori") {
-    throw new Error(`Irodori routing failed: got ${resIrodori.engine}`);
-  }
-  console.log("   ✓ Japanese -> Irodori Native Accent routing passed.");
-
-  console.log("   ✓ ALL Voice Profile & Routing tests passed cleanly.");
+  console.log("   ✓ ALL Unified Single Voice Profile tests passed cleanly.");
 }

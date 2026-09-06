@@ -186,6 +186,10 @@ window.miku.on(Ipc.STOP_AUDIO, () => {
   stopAudio();
 });
 
+window.miku.on(Ipc.CHAT_CLEARED, () => {
+  stopAudio();
+});
+
 window.miku.on(Ipc.USER_SUBMIT, (text: unknown) => {
   motionEventBus.emit({ type: "user:submit", payload: { text: typeof text === "string" ? text : "" } });
 });

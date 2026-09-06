@@ -456,6 +456,32 @@ header button, header select, header input, .no-drag { -webkit-app-region: no-dr
   color: var(--user);
 }
 
+/* Action Prose & Stage Directions (*...*) Styling */
+.action-prose {
+  color: #8da5ae;
+  font-style: italic;
+  font-size: 0.93em;
+  background: rgba(6, 14, 22, 0.42);
+  border: 1px solid rgba(57, 197, 187, 0.16);
+  border-left: 2.5px solid rgba(57, 197, 187, 0.45);
+  border-radius: 4px;
+  padding: 1.5px 7px;
+  margin: 2px 0;
+  display: inline-block;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+}
+
+.bubble.user .action-prose {
+  color: rgba(220, 245, 255, 0.78);
+  background: rgba(0, 0, 0, 0.22);
+  border-color: rgba(255, 255, 255, 0.18);
+  border-left-color: rgba(255, 255, 255, 0.5);
+}
+
 /* Suggestion Prompts Section (Zero-Scrollbar, Balanced 3-Pill Layout) */
 .suggestions-wrapper {
   flex-shrink: 0;

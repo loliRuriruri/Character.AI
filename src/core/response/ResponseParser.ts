@@ -11,19 +11,37 @@ export const NON_ACTION_EMPHASIS_REGEX = /^(?:절대로|정말(?:로)?|진짜(?:
 
 export function isLikelyActionProse(text: string): boolean {
   const trimmed = text.trim();
-  if (trimmed.length < 2 || trimmed.length > 120) return false;
+  if (trimmed.length < 2 || trimmed.length > 250) return false;
   // Pure numbers, math, or punctuation
   if (/^[\d\s+\-*/=.,<>]+$/.test(trimmed)) return false;
+  // File wildcard extensions (*.ts, *.json) or pointer identifiers (*ptr)
+  if (/^\.[a-zA-Z0-9]+$/.test(trimmed)) return false;
+  if (/^[a-zA-Z_]\w*$/.test(trimmed)) return false;
   // Known non-action emphasis words and nouns (e.g. *손해*, *눈금*, *걸그룹*)
   if (NON_ACTION_EMPHASIS_REGEX.test(trimmed)) return false;
   // Arrow corrections like "어제 -> 그저께"
   if (/->|=>|→/.test(trimmed)) return false;
-  // Contains action roots
-  if (ACTION_KEYWORD_REGEX.test(trimmed)) return true;
-  // Narrative verbal connective endings (e.g. *웃는다*, *걸어온다*)
-  if (/[가-힣]+(?:며|면서|고|듯|다|어|아|포즈|중)$/.test(trimmed) && trimmed.length >= 3) {
+
+  // 1. In character dialogue, any multi-word sentence/phrase (containing spaces) with Korean or CJK text
+  // inside *...* represents stage directions, actions, or thoughts (e.g. "*가느다란 미소와 함께 눈이 반짝거린다.*")
+  if (trimmed.includes(" ") && /[가-힣\u3040-\u30ff\u4e00-\u9faf]/.test(trimmed)) {
     return true;
   }
+
+  // 2. Contains action roots
+  if (ACTION_KEYWORD_REGEX.test(trimmed)) return true;
+
+  // 3. Narrative verbal connective endings (strip trailing punctuation first to match ".!?~…")
+  const stripped = trimmed.replace(/[.!?~…\s]+$/, "");
+  if (/[가-힣]+(?:며|면서|고|듯|다|어|아|포즈|중|임|음|함|람|림|감|잠|척)$/.test(stripped) && stripped.length >= 2) {
+    return true;
+  }
+
+  // 4. Reflective thought endings (e.g. *어쩌지?*, *어떨까...*, *뭘까*)
+  if (/[가-힣]+(?:지|까|나|걸|텐데|려나|을까|ㄹ까)$/.test(stripped) && stripped.length >= 2) {
+    return true;
+  }
+
   return false;
 }
 
@@ -47,8 +65,11 @@ export class ResponseParser {
 
     const actionCues: string[] = [];
 
+    // 0. 생각 태그 (<think>...</think>, <thought>...</thought>) 완전 제거
+    const cleanNoThink = raw.replace(/<(?:think|thought)>[\s\S]*?(?:<\/(?:think|thought)>|$)/gi, "").trim();
+
     // 1. 감정 태그 제거한 displayProse
-    const displayProse = raw.replace(EMOTION_TAG_REGEX, "").trim();
+    const displayProse = cleanNoThink.replace(EMOTION_TAG_REGEX, "").trim();
 
     // 2. 보호 패스: 코드블록, 인라인코드, 마크다운 볼드, 수식, 와일드카드, 이모티콘 등
     const protections: string[] = [];
@@ -58,7 +79,7 @@ export class ResponseParser {
       return placeholder;
     };
 
-    let text = raw.replace(EMOTION_TAG_REGEX, " ");
+    let text = cleanNoThink.replace(EMOTION_TAG_REGEX, " ");
 
     // 2.1 코드 블록 (``` ... ```)
     text = text.replace(/```[\s\S]*?```/g, (m) => protect(m));
@@ -126,7 +147,7 @@ export class ResponseParser {
       .replace(/([가-힣a-zA-Z\)])\.([가-힣a-zA-Z])/g, "$1. $2");
 
     return {
-      raw,
+      raw: cleanNoThink,
       speechText: speech,
       displayProse,
       actionCues,

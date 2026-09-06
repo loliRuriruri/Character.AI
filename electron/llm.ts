@@ -173,26 +173,35 @@ async function ollamaRequest(
     const t = await res.text().catch(() => "");
     throw new LlmError("Ollama HTTP " + res.status + " " + t.slice(0, 400), res.status);
   }
-  if (body.stream === true) return readOllamaNdjson(res, onDelta);
+  if (body.stream === true) return readOllamaNdjson(res, onDelta, signal);
   const json = (await res.json()) as { message?: { content?: string }; response?: string };
   const text = (json.message?.content ?? json.response ?? "").toString();
   if (text) onDelta(text);
   return text;
 }
 
-async function readOllamaNdjson(res: Response, onDelta: (chunk: string) => void): Promise<string> {
+async function readOllamaNdjson(res: Response, onDelta: (chunk: string) => void, signal?: AbortSignal): Promise<string> {
   if (!res.body) throw new LlmError("Ollama stream had no body");
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
   let acc = "";
   while (true) {
+    if (signal?.aborted) {
+      try { await reader.cancel(); } catch {}
+      break;
+    }
     const { done, value } = await reader.read();
     if (done) break;
+    if (signal?.aborted) {
+      try { await reader.cancel(); } catch {}
+      break;
+    }
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split("\n");
     buf = lines.pop() ?? "";
     for (const line of lines) {
+      if (signal?.aborted) break;
       const trimmed = line.trim();
       if (!trimmed) continue;
       let parsed: { message?: { content?: string }; response?: string; done?: boolean };

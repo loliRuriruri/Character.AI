@@ -56,12 +56,31 @@ export function testStreamingActionBuffer() {
     assert.strictEqual(flushed.remainingSpeech, "");
   }
 
-  // 4. Markdown bold not treated as action during stream
+  // 5. Reasoning tokens (<think>...</think>) filtered out completely from speechChunk
   {
     const buffer = new StreamingActionSpanBuffer({ mode: "rp" });
-    const { completedActions, speechChunk } = buffer.processDelta("**정말 중요한 공지**");
-    assert.deepStrictEqual(completedActions, []);
-    assert(speechChunk.includes("**정말 중요한 공지**"));
+    const chunks = ["<think>\n", "User wants a greeting in Korean.\n", "I should act as Hatsune Miku.\n", "</think>\n", "안녕! *반갑게 손을 흔든다.* 오늘 하루 어땠어?"];
+    let speech = "";
+    const actions: string[] = [];
+    let display = "";
+
+    for (const chunk of chunks) {
+      const { completedActions, speechChunk, displayDelta } = buffer.processDelta(chunk);
+      actions.push(...completedActions);
+      speech += speechChunk;
+      display += displayDelta;
+    }
+    const flushed = buffer.flush();
+    actions.push(...flushed.remainingActions);
+    speech += flushed.remainingSpeech;
+
+    assert(!speech.includes("User wants"));
+    assert(!speech.includes("Hatsune Miku"));
+    assert(!speech.includes("<think>"));
+    assert(!display.includes("<think>"));
+    assert(!display.includes("User wants"));
+    assert.deepStrictEqual(actions, ["반갑게 손을 흔든다."]);
+    assert.strictEqual(speech.replace(/\s+/g, " ").trim(), "안녕! 오늘 하루 어땠어?");
   }
 
   console.log("   ✓ StreamingActionSpanBuffer tests passed.");

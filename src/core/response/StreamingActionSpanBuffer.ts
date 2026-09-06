@@ -9,6 +9,7 @@ export class StreamingActionSpanBuffer {
   private buffer: string = "";
   private inAction: boolean = false;
   private actionBuffer: string = "";
+  private inThink: boolean = false;
 
   constructor(options?: ActionSpanBufferOptions) {
     const rawMode = options?.mode || "chat";
@@ -21,21 +22,74 @@ export class StreamingActionSpanBuffer {
 
   /**
    * Process a streaming text delta.
-   * Returns newly completed action spans (if any) and clean speech text to feed to the TTS sentence chunker.
+   * Returns newly completed action spans (if any), clean speech text to feed to the TTS sentence chunker,
+   * and clean display delta for chat UI rendering (excluding internal thinking tokens).
    */
-  processDelta(delta: string): { completedActions: string[]; speechChunk: string } {
+  processDelta(delta: string): { completedActions: string[]; speechChunk: string; displayDelta: string } {
     this.buffer += delta;
     const completedActions: string[] = [];
     let speechChunk = "";
+    let displayDelta = "";
 
     let i = 0;
     while (i < this.buffer.length) {
+      // 0. Handle <think> / <thought> tags (Qwen / DeepSeek reasoning tokens)
+      if (this.inThink) {
+        const rest = this.buffer.slice(i);
+        const closeThink = rest.indexOf("</think>");
+        const closeThought = rest.indexOf("</thought>");
+        let closeIdx = -1;
+        let closeLen = 0;
+        if (closeThink !== -1 && (closeThought === -1 || closeThink < closeThought)) {
+          closeIdx = closeThink;
+          closeLen = 8;
+        } else if (closeThought !== -1) {
+          closeIdx = closeThought;
+          closeLen = 10;
+        }
+
+        if (closeIdx !== -1) {
+          this.inThink = false;
+          i += closeIdx + closeLen;
+          continue;
+        } else {
+          // Check if buffer ends with partial closing tag like "</th"
+          const lastLt = this.buffer.lastIndexOf("<");
+          if (lastLt >= i && ("</think>".startsWith(this.buffer.slice(lastLt)) || "</thought>".startsWith(this.buffer.slice(lastLt)))) {
+            i = lastLt;
+            break;
+          }
+          i = this.buffer.length;
+          break;
+        }
+      }
+
       const ch = this.buffer[i];
 
       if (!this.inAction) {
+        // Check for opening <think> or <thought>
+        if (this.buffer.startsWith("<think>", i)) {
+          this.inThink = true;
+          i += 7;
+          continue;
+        }
+        if (this.buffer.startsWith("<thought>", i)) {
+          this.inThink = true;
+          i += 9;
+          continue;
+        }
+        // If '<' is near buffer end, wait to see if it forms <think> or <thought>
+        if (ch === "<") {
+          const rest = this.buffer.slice(i);
+          if ("<think>".startsWith(rest) || "<thought>".startsWith(rest)) {
+            break;
+          }
+        }
+
         // Check for escaped asterisk: \*
         if (ch === "\\" && this.buffer[i + 1] === "*") {
           speechChunk += "*";
+          displayDelta += "*";
           i += 2;
           continue;
         }
@@ -56,6 +110,7 @@ export class StreamingActionSpanBuffer {
             } else {
               const fullBold = this.buffer.slice(i, boldEnd + 2);
               speechChunk += fullBold;
+              displayDelta += fullBold;
               i = boldEnd + 2;
               continue;
             }
@@ -70,7 +125,9 @@ export class StreamingActionSpanBuffer {
           if (this.buffer.slice(i, i + 3) === "```") {
             const blockEnd = this.buffer.indexOf("```", i + 3);
             if (blockEnd === -1) break;
-            speechChunk += this.buffer.slice(i, blockEnd + 3);
+            const codeBlock = this.buffer.slice(i, blockEnd + 3);
+            speechChunk += codeBlock;
+            displayDelta += codeBlock;
             i = blockEnd + 3;
             continue;
           }
@@ -79,12 +136,15 @@ export class StreamingActionSpanBuffer {
           if (codeEnd === -1) {
             break;
           } else {
-            speechChunk += this.buffer.slice(i, codeEnd + 1);
+            const inlineCode = this.buffer.slice(i, codeEnd + 1);
+            speechChunk += inlineCode;
+            displayDelta += inlineCode;
             i = codeEnd + 1;
             continue;
           }
         } else {
           speechChunk += ch;
+          displayDelta += ch;
           i++;
         }
       } else {
@@ -97,10 +157,12 @@ export class StreamingActionSpanBuffer {
           const isAction = this.isActionSpan(candidate);
           if (isAction) {
             completedActions.push(candidate);
+            displayDelta += `*${candidate}*`;
             // Action prose is completely excluded from speechChunk!
           } else {
             // Non-action homonym, math, or emphasis (e.g. *손해*, *눈금*) -> preserved in speech
             speechChunk += ` ${candidate} `;
+            displayDelta += ` ${candidate} `;
           }
           this.actionBuffer = "";
         } else {
@@ -111,7 +173,7 @@ export class StreamingActionSpanBuffer {
     }
 
     this.buffer = this.buffer.slice(i);
-    return { completedActions, speechChunk };
+    return { completedActions, speechChunk, displayDelta };
   }
 
   /**
@@ -144,6 +206,11 @@ export class StreamingActionSpanBuffer {
     const remainingActions: string[] = [];
     let remainingSpeech = "";
 
+    if (this.inThink) {
+      this.inThink = false;
+      this.buffer = ""; // unclosed thinking tokens are discarded!
+    }
+
     if (this.inAction) {
       const candidate = this.actionBuffer.trim();
       if (this.isActionSpan(candidate)) {
@@ -167,5 +234,6 @@ export class StreamingActionSpanBuffer {
     this.buffer = "";
     this.inAction = false;
     this.actionBuffer = "";
+    this.inThink = false;
   }
 }

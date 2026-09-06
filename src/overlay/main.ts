@@ -714,7 +714,9 @@ function escapeHtml(str: string): string {
 }
 
 function renderBubbleHtml(text: string): string {
-  const clean = stripEmotionTags(text);
+  // Strip internal reasoning / thinking tags (<think>...</think> or unclosed <think>...)
+  const withoutThinking = text.replace(/<(?:think|thought)>[\s\S]*?(?:<\/(?:think|thought)>|$)/gi, "");
+  const clean = stripEmotionTags(withoutThinking);
   const formatted = formatChatText(clean);
   const escaped = escapeHtml(formatted);
   return escaped.replace(/\*([^*]+)\*/g, '<span class="action-prose">*$1*</span>');

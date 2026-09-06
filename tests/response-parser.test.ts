@@ -200,5 +200,16 @@ export function testResponseParser() {
     }
   }
 
+  // 12. Reasoning Tags (<think> / <thought>) complete stripping test
+  {
+    const rawWithThink = "<think>\nThinking in Chinese: 用户问我今天过得怎么样...\n</think>\n*밝게 웃으며* 안녕하세요! 오늘 하루 즐겁게 보내셨나요?";
+    const parsed = ResponseParser.parse(rawWithThink, { mode: "rp" });
+    assert(!parsed.raw.includes("<think>"), "Raw should strip think tags in parse");
+    assert(!parsed.displayProse.includes("Thinking in Chinese"));
+    assert(!parsed.speechText.includes("Thinking in Chinese"));
+    assert.deepStrictEqual(parsed.actionCues, ["밝게 웃으며"]);
+    assert.strictEqual(parsed.speechText, "안녕하세요! 오늘 하루 즐겁게 보내셨나요?");
+  }
+
   console.log("   ✓ ResponseParser tests passed.");
 }

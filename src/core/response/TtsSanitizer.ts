@@ -1,3 +1,5 @@
+import { isLikelyActionProse } from "./ResponseParser";
+
 export function stripVisualArtifacts(text: string): string {
   let s = text;
   // 1. Unicode Emojis & Pictographs (including 🎯, 😊, 🐱, etc.)
@@ -33,7 +35,12 @@ export function formatChatText(text: string): string {
 }
 
 export function sanitizeSpeechForTts(text: string): string {
-  let s = formatChatText(text);
+  // 0. Action prose, stage directions, and thoughts inside *...* must NEVER be spoken by TTS!
+  let s = text.replace(/\*([^*\n]+)\*/g, (_match, p1) => {
+    if (isLikelyActionProse(p1)) return " ";
+    return ` ${p1} `;
+  });
+  s = formatChatText(s);
   // Soften shouting/harsh interjections that cause TTS vocal strain/pitch spikes
   s = s.replace(/와아!+/g, "와아~");
   s = s.replace(/우와!+/g, "우와~");
