@@ -112,7 +112,7 @@ export function trimTrailingArtifacts(
   const numFrames = Math.floor((channelData.length - windowSize) / hopSize);
   if (numFrames <= 0) return channelData;
 
-  const silenceThreshold = options?.silenceThreshold ?? 0.005;
+  const silenceThreshold = options?.silenceThreshold ?? 0.0008;
   const rmsValues: number[] = new Array(numFrames);
   let peakRms = 0;
 
