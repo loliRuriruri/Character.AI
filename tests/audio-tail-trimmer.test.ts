@@ -46,9 +46,14 @@ export function testAudioTailTrimmer() {
       buffer[i] = 0.0005 * (Math.random() - 0.5);
     }
 
-    const trimmed = trimTrailingArtifacts(buffer, sr);
+    const trimmed = trimTrailingArtifacts(buffer, sr, {
+      enableBurstExcision: true,
+      minGapSec: 0.30,
+      tailWindowRatio: 0.75,
+      expectedMinDurationSec: 0.8,
+    });
     const trimmedSec = trimmed.length / sr;
-    assert(trimmedSec <= 1.2, `Expected trimmed length <= 1.2s, got ${trimmedSec}s`);
+    assert(trimmedSec <= 1.25, `Expected trimmed length <= 1.25s, got ${trimmedSec}s`);
   }
 
   // 3. Near-silent buffer safety
@@ -59,6 +64,36 @@ export function testAudioTailTrimmer() {
     }
     const result = trimTrailingArtifacts(buffer, sr);
     assert.strictEqual(result.length, buffer.length);
+  }
+
+  // 4. Normal speech with intra-sentence pauses (300ms, 500ms, 800ms) - Part 2 must NEVER be truncated!
+  {
+    for (const pauseMs of [300, 500, 800]) {
+      const p1Len = Math.floor(sr * 1.0); // "정말..." (1.0s)
+      const pauseLen = Math.floor(sr * (pauseMs / 1000)); // Pause
+      const p2Len = Math.floor(sr * 1.2); // "그렇게 생각해?" (1.2s)
+      const tailLen = Math.floor(sr * 1.0); // 1.0s trailing dead air
+      const totalLen = p1Len + pauseLen + p2Len + tailLen;
+
+      const buf = new Float32Array(totalLen);
+      for (let i = 0; i < p1Len; i++) buf[i] = 0.1 * Math.sin(2 * Math.PI * 300 * (i / sr));
+      for (let i = p1Len; i < p1Len + pauseLen; i++) buf[i] = 0.0005 * (Math.random() - 0.5);
+      for (let i = p1Len + pauseLen; i < p1Len + pauseLen + p2Len; i++) buf[i] = 0.1 * Math.sin(2 * Math.PI * 400 * (i / sr));
+      for (let i = p1Len + pauseLen + p2Len; i < totalLen; i++) buf[i] = 0.0005 * (Math.random() - 0.5);
+
+      const speechEndSec = (p1Len + pauseLen + p2Len) / sr;
+      const trimmed = trimTrailingArtifacts(buf, sr);
+      const trimmedSec = trimmed.length / sr;
+
+      assert(
+        trimmedSec >= speechEndSec,
+        `Pause ${pauseMs}ms FAIL: Part 2 was truncated! (expected >= ${speechEndSec}s, got ${trimmedSec}s)`
+      );
+      assert(
+        trimmedSec <= speechEndSec + 0.15,
+        `Pause ${pauseMs}ms FAIL: trailing dead-air not trimmed! (got ${trimmedSec}s, expected <= ${speechEndSec + 0.15}s)`
+      );
+    }
   }
 
   console.log("   ✓ AudioTailTrimmer tests passed.");

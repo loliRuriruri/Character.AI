@@ -14,16 +14,19 @@ export function formatChatText(text: string): string {
   let s = stripVisualArtifacts(text);
   // Exclamation & question marks followed by any non-whitespace
   s = s.replace(/([!?！？])([^\s!?！？])/g, "$1 $2");
-  // Alphabet quiz options: A) or A. at line start or after whitespace -> A번, 
-  s = s.replace(/(^|[\s\n\r])([A-Za-z])[\.\)]\s*/g, "$1$2번, ");
-  // Numbered choices glued to preceding text: e.g. 친구2. -> 친구\n2.
-  s = s.replace(/([가-힣a-zA-Z\)])(\d+[\.\)])/g, "$1\n$2");
+
+  // Alphabet quiz options: Only format at line start or after whitespace, matching locale
+  s = s.replace(/(^|[\n\r]|\s+)([A-Za-z])[\.\)]\s*([가-힣])/g, "$1$2번, $3");
+  s = s.replace(/(^|[\n\r]|\s+)([A-Za-z])[\.\)]\s*([\u3040-\u30ff\u4e00-\u9faf])/g, "$1$2、$3");
+  s = s.replace(/(^|[\n\r]|\s+)([A-Za-z])[\.\)]\s*([A-Za-z])/g, "$1$2, $3");
+
+  // Numbered choices: Only at line start or after newline (never in middle of math like 3 * 5 = 15.)
+  s = s.replace(/(^|[\n\r])\s*(\d{1,2})[\.\)]\s*([가-힣])/g, "$1$2번, $3");
+  s = s.replace(/(^|[\n\r])\s*(\d{1,2})[\.\)]\s*([\u3040-\u30ff\u4e00-\u9faf])/g, "$1$2、$3");
+  s = s.replace(/(^|[\n\r])\s*(\d{1,2})[\.\)]\s*([A-Za-z])/g, "$1$2, $3");
+
   // Space after numbered dot: 1.친구 -> 1. 친구
-  s = s.replace(/(\d+[\.\)])([^\s\d])/g, "$1 $2");
-  // Numbered options: 1. or 1) -> 1번,
-  s = s.replace(/(^|[\s\n\r])(\d{1,2})[\.\)]\s*/g, "$1$2번, ");
-  // Separate choice ending from prompt: 4번, 노래정답을 -> 4번, 노래\n정답을
-  s = s.replace(/(\d+번,\s*[가-힣a-zA-Z]+)(정답|골라|맞혀|도전)/g, "$1\n$2");
+  s = s.replace(/(^|[\n\r])(\d+[\.\)])([^\s\d])/g, "$1$2 $3");
   // Period followed by letter
   s = s.replace(/([가-힣a-zA-Z\)])\.([가-힣a-zA-Z])/g, "$1. $2");
   return s;
@@ -42,11 +45,10 @@ export function sanitizeSpeechForTts(text: string): string {
   // Reverse: 친구(ともだち) -> 친구
   s = s.replace(/([가-힣]+)\s*\([\u3040-\u30ff\u4e00-\u9faf\s]+\)/g, "$1");
   // Remove quotation marks that cause awkward glottal stops in TTS, preserving contractions/possessive apostrophes (don't, I'm, let's, Miku's)
-  s = s.replace(/(^|[\s(])['"`“‘]([가-힣a-zA-Z0-9])/g, "$1$2");
-  s = s.replace(/([가-힣a-zA-Z0-9])['"`”’]([\s).,!?]|$)/g, "$1$2");
+  s = s.replace(/(?<![a-zA-Z])['`]/g, "");
+  s = s.replace(/['`](?![a-zA-Z])/g, "");
   s = s.replace(/["`“”]/g, "");
-  // Numbered options read cleanly with pausing commas: 1번, 친구 -> 1번, 친구.
-  s = s.replace(/(\d+번,\s*[가-힣a-zA-Z\u3040-\u30ff\u4e00-\u9faf]+)(?!\.)/g, "$1. ");
+
   // Soften staccato laugh sounds
   s = s.replace(/에헤헤+/g, "헤헤~");
   s = s.replace(/헤헤헤+/g, "헤헤~");
@@ -58,9 +60,12 @@ export function sanitizeSpeechForTts(text: string): string {
   s = s.replace(/\s+/g, " ").trim();
   if (!s) return "";
 
-  // Guaranteed terminal sentence punctuation to prevent autoregressive TTS tail hallucinations (screams/sighs/groans)
-  if (!/[.!?~…\u3002\uFF01\uFF1F]$/.test(s)) {
-    s += /[\u3040-\u30ff\u4e00-\u9faf]$/.test(s) ? "。" : ".";
+  // Guaranteed terminal sentence punctuation to prevent autoregressive TTS tail hallucinations:
+  // Must check if there is ALREADY terminal punctuation, including before closing brackets/quotes!
+  const hasTerminalPunct = /[.!?~…\u3002\uFF01\uFF1F][\]』」）)'"”’]*$/.test(s);
+  if (!hasTerminalPunct) {
+    const isJapaneseEnd = /[\u3040-\u30ff\u4e00-\u9faf][\]』」）)'"”’]*$/.test(s);
+    s += isJapaneseEnd ? "。" : ".";
   }
 
   return s;

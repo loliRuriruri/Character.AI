@@ -490,6 +490,22 @@ export class FishAudioTts {
     const voiceId = (settings.fishVoiceId || "").trim() || "acc8237220d8470985ec9be6c4c480a9";
     const latency = settings.fishLatency || "low";
 
+    const requestPayload = {
+      text: cleanSpoken,
+      reference_id: voiceId,
+      format: "wav",
+      latency,
+      normalize: true,
+      temperature: 0.5,
+      top_p: 0.7,
+      repetition_penalty: 1.2,
+      max_new_tokens: 1024,
+    };
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[FishAudio Request]", JSON.stringify(requestPayload));
+    }
+
     try {
       const resp = await fetch("https://api.fish.audio/v1/tts", {
         method: "POST",
@@ -499,17 +515,7 @@ export class FishAudioTts {
           "Content-Type": "application/json",
           "accept": "audio/wav",
         },
-        body: JSON.stringify({
-          text: cleanSpoken,
-          reference_id: voiceId,
-          format: "wav",
-          latency,
-          normalize: true,
-          temperature: 0.5,
-          top_p: 0.7,
-          repetition_penalty: 1.2,
-          max_new_tokens: 1024,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       if (!resp.ok) {

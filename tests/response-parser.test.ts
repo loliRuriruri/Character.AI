@@ -100,15 +100,31 @@ export function testResponseParser() {
     assert.strictEqual(clean3, "미쿠의 추천! 오늘은 즐거운 날이야~");
   }
 
-  // 7. Quiz Choice & Numbered Option Normalization
+  // 7. Locale-Aware Quiz Choice & Numbered Option Normalization
   {
-    const choices = "A) 猫はベッドで寝ています。\nB) 猫はマット";
-    const cleanChoices = sanitizeSpeechForTts(choices);
-    assert(cleanChoices.includes("A번,"));
-    assert(cleanChoices.includes("B번,"));
-    // Must end with clean terminal punctuation for EOS
-    assert(cleanChoices.endsWith("。") || cleanChoices.endsWith("."));
+    // Korean choices: "A번, "
+    const choicesKo = "A) 사과\nB) 바나나";
+    const cleanKo = sanitizeSpeechForTts(choicesKo);
+    assert(cleanKo.includes("A번, 사과"));
+    assert(cleanKo.includes("B번, 바나나"));
 
+    // Japanese choices: "A、" (MUST NOT insert Korean "번")
+    const choicesJa = "A) 猫はベッドで寝ています。\nB) 猫はマット";
+    const cleanJa = sanitizeSpeechForTts(choicesJa);
+    assert(cleanJa.includes("A、猫はベッドで寝ています。"));
+    assert(cleanJa.includes("B、猫はマット。"));
+    assert(!cleanJa.includes("A번,"));
+    assert(!cleanJa.includes("B번,"));
+    assert(cleanJa.endsWith("。"));
+
+    // English choices: "A, "
+    const choicesEn = "A) The cat is on the mat.\nB) The dog";
+    const cleanEn = sanitizeSpeechForTts(choicesEn);
+    assert(cleanEn.includes("A, The cat"));
+    assert(cleanEn.includes("B, The dog."));
+    assert(!cleanEn.includes("A번,"));
+
+    // Numbered options at line start
     const numbered = "1. 사과\n2. 바나나\n3. 포도";
     const cleanNum = sanitizeSpeechForTts(numbered);
     assert(cleanNum.includes("1번, 사과"));
@@ -116,16 +132,72 @@ export function testResponseParser() {
     assert(cleanNum.includes("3번, 포도"));
   }
 
-  // 8. Terminal Punctuation Guarantee (Prevents Autoregressive Tail Hallucination / Screams / Groans)
+  // 8. Closing Quotes & Brackets Terminal Punctuation (Zero Duplicate Punctuation)
   {
-    const noPunctKo = "안녕하세요 마스터";
-    assert.strictEqual(sanitizeSpeechForTts(noPunctKo), "안녕하세요 마스터.");
+    // Existing punctuation inside/before quotes or brackets must NOT get extra periods
+    assert.strictEqual(sanitizeSpeechForTts('"안녕!"'), "안녕!");
+    assert.strictEqual(sanitizeSpeechForTts("'hello?'"), "hello?");
+    assert.strictEqual(sanitizeSpeechForTts("「猫です。」"), "「猫です。」");
+    assert.strictEqual(sanitizeSpeechForTts("（大丈夫。）"), "（大丈夫。）");
+    assert.strictEqual(sanitizeSpeechForTts("안녕!"), "안녕!");
+    assert.strictEqual(sanitizeSpeechForTts("hello?"), "hello?");
+    assert.strictEqual(sanitizeSpeechForTts("猫です。"), "猫です。");
+    assert.strictEqual(sanitizeSpeechForTts("大丈夫。"), "大丈夫。");
 
-    const noPunctJa = "こんにちは、マスター";
-    assert.strictEqual(sanitizeSpeechForTts(noPunctJa), "こんにちは、マスター。");
+    // Sentences lacking terminal punctuation get cleanly punctuated
+    assert.strictEqual(sanitizeSpeechForTts("안녕하세요 마스터"), "안녕하세요 마스터.");
+    assert.strictEqual(sanitizeSpeechForTts("こんにちは、マスター"), "こんにちは、マスター。");
+  }
 
-    const alreadyPunct = "기다려줘!";
-    assert.strictEqual(sanitizeSpeechForTts(alreadyPunct), "기다려줘!");
+  // 9. Idempotency Property Test: sanitize(sanitize(x)) === sanitize(x) (34 Diverse Strings)
+  {
+    const testStrings = [
+      "안녕하세요 마스터!",
+      "오늘 날씨가 정말 좋네요.",
+      "Hello! How are you doing today?",
+      "こんにちは、マスター！",
+      "A) 사과\nB) 바나나",
+      "1. 첫 번째 2. 두 번째",
+      "와아아아!! 대단해!!",
+      "헤헤헤~ 고마워!",
+      "I'm sure you don't mind. Let's go!",
+      "친구(ともだち)와 함께 놀자.",
+      "ともだち(토모다치)랑 놀자.",
+      "이것은 '인용문'입니다.",
+      "\"따옴표\" 테스트",
+      "3 * 5 = 15",
+      "c = a * b",
+      "f***ing amazing",
+      "질문: \"The cat is sleeping on the mat.\" 번역해줘",
+      "A) 猫はベッドで寝ています。\nB) 猫はマット",
+      "1. 사과\n2. 바나나\n3. 포도",
+      "★ 미쿠의 추천! ✨ 오늘은 즐거운 날이야~ 🌸",
+      "안녕",
+      "こんにちは",
+      "Hello",
+      "「猫です。」",
+      "（大丈夫。）",
+      "정말... 그렇게 생각해?",
+      "에헤헤헤... 조금 부끄러워",
+      "앗! 깜짝이야!",
+      "야호!! 신난다!!",
+      "123.456 숫자는 그대로 유지되어야 해.",
+      "Mr. Smith went to Washington.",
+      "2026.09.06 날짜 형식",
+      "마스터, 오늘 기분은 어때? 내일 내일만 내다보느라 바쁘지 않았어?",
+      "나도 오늘 아침에 일어나자마자 마스터를 만나서 반가웠어."
+    ];
+
+    for (let i = 0; i < testStrings.length; i++) {
+      const original = testStrings[i];
+      const once = sanitizeSpeechForTts(original);
+      const twice = sanitizeSpeechForTts(once);
+      assert.strictEqual(
+        once,
+        twice,
+        `Idempotency failed on case [${i + 1}]: "${original}" -> 1st: "${once}" vs 2nd: "${twice}"`
+      );
+    }
   }
 
   console.log("   ✓ ResponseParser tests passed.");

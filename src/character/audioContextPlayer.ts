@@ -89,21 +89,33 @@ export function computeMouthOpen(
   return Math.pow(Math.min(Math.max(normalized, 0), 1), curveExp);
 }
 
+export interface TailTrimmerOptions {
+  silenceThreshold?: number;
+  minGapSec?: number;
+  tailWindowRatio?: number;
+  expectedMinDurationSec?: number;
+  maxTrimDurationSec?: number;
+  enableBurstExcision?: boolean;
+}
+
 /**
- * Trims trailing audio hallucinations (screams/sighs/groans) or trailing silence.
- * Detects if an abnormal silence gap (>= 280ms) precedes trailing bursts, or trims excessive silence.
+ * Trims trailing audio dead-air silence and optional tail bursts.
+ * Safely guards against truncating normal speech with internal pauses (e.g. "정말... 그렇게 생각해?").
  */
 export function trimTrailingArtifacts(
   channelData: Float32Array,
-  sampleRate: number
+  sampleRate: number,
+  options?: TailTrimmerOptions
 ): Float32Array {
   const windowSize = Math.floor(sampleRate * 0.02); // 20ms window
   const hopSize = Math.floor(sampleRate * 0.01); // 10ms hop
   const numFrames = Math.floor((channelData.length - windowSize) / hopSize);
   if (numFrames <= 0) return channelData;
 
+  const silenceThreshold = options?.silenceThreshold ?? 0.005;
   const rmsValues: number[] = new Array(numFrames);
   let peakRms = 0;
+
   for (let i = 0; i < numFrames; i++) {
     const offset = i * hopSize;
     let sumSq = 0;
@@ -118,9 +130,7 @@ export function trimTrailingArtifacts(
 
   if (peakRms < 0.01) return channelData; // Near silence
 
-  const silenceThreshold = 0.005; // -46dB
-  const gapFramesRequired = Math.floor(0.28 / 0.01); // 280ms gap
-
+  // 1. Find absolute last active frame of sound
   let lastActiveFrame = numFrames - 1;
   while (lastActiveFrame >= 0 && rmsValues[lastActiveFrame] < silenceThreshold) {
     lastActiveFrame--;
@@ -128,29 +138,46 @@ export function trimTrailingArtifacts(
 
   if (lastActiveFrame < 0) return channelData;
 
-  // Scan backwards from lastActiveFrame to detect hallucinated bursts after a silence gap
-  let silentGapCount = 0;
   let cutFrame = lastActiveFrame;
 
-  for (let i = lastActiveFrame; i >= 0; i--) {
-    if (rmsValues[i] < silenceThreshold) {
-      silentGapCount++;
-      if (silentGapCount >= gapFramesRequired) {
-        cutFrame = i;
-        while (i >= 0 && rmsValues[i] < silenceThreshold) {
-          cutFrame = i;
-          i--;
+  // 2. Tail Burst Excision (Only when explicitly enabled, guarded strictly to tail window)
+  if (options?.enableBurstExcision) {
+    const minGapSec = options.minGapSec ?? 0.40;
+    const gapFramesRequired = Math.floor(minGapSec / 0.01);
+    const tailWindowRatio = options.tailWindowRatio ?? 0.25;
+    const earliestAllowedCutFrame = Math.floor(numFrames * (1 - tailWindowRatio));
+
+    let silentGapCount = 0;
+    for (let i = lastActiveFrame; i >= earliestAllowedCutFrame; i--) {
+      if (rmsValues[i] < silenceThreshold) {
+        silentGapCount++;
+        if (silentGapCount >= gapFramesRequired) {
+          let candidateCut = i;
+          while (candidateCut >= earliestAllowedCutFrame && rmsValues[candidateCut] < silenceThreshold) {
+            candidateCut--;
+          }
+          const candidateDuration = (candidateCut * hopSize) / sampleRate;
+          const minAllowedDuration = options.expectedMinDurationSec ?? 0.5;
+          if (candidateDuration >= minAllowedDuration) {
+            cutFrame = candidateCut;
+          }
+          break;
         }
-        break;
+      } else {
+        silentGapCount = 0;
       }
-    } else {
-      silentGapCount = 0;
     }
   }
 
-  const paddingSamples = Math.floor(sampleRate * 0.08); // 80ms natural decay
-  const fadeSamples = Math.floor(sampleRate * 0.02); // 20ms linear fade out
-  const cutSample = Math.min(channelData.length, cutFrame * hopSize + paddingSamples + fadeSamples);
+  // 3. Natural decay padding (80ms) + anti-pop linear fade (20ms)
+  const paddingSamples = Math.floor(sampleRate * 0.08);
+  const fadeSamples = Math.floor(sampleRate * 0.02);
+  let cutSample = cutFrame * hopSize + paddingSamples + fadeSamples;
+
+  if (options?.maxTrimDurationSec) {
+    const minSample = channelData.length - Math.floor(sampleRate * options.maxTrimDurationSec);
+    if (cutSample < minSample) cutSample = minSample;
+  }
 
   if (cutSample >= channelData.length) return channelData;
 
