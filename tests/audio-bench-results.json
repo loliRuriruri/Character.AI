@@ -1,0 +1,397 @@
+{
+  "timingRows": [
+    {
+      "turn": 1,
+      "sentence": 1,
+      "text": "안녕! 오늘 날씨가 정말 화창하다 그치?",
+      "final": 1788696495132,
+      "ttsReq": 1788696495134,
+      "audioRx": 1788696495228,
+      "decodeDone": 1788696495231,
+      "sourceStart": 1788696495232,
+      "sourceEnd": 1788696497332,
+      "durationSec": 2.1,
+      "ttsLatency": 94,
+      "decodeLatency": 2.94,
+      "playSchedulingLatency": 0.41,
+      "finalToSourceStart": 100
+    },
+    {
+      "turn": 1,
+      "sentence": 2,
+      "text": "창밖을 보니까 푸른 하늘이 기분 좋게 펼쳐져 있어.",
+      "final": 1788696497611.547,
+      "ttsReq": 1788696497613.547,
+      "audioRx": 1788696497738.547,
+      "decodeDone": 1788696497742,
+      "sourceStart": 1788696497743,
+      "sourceEnd": 1788696500143,
+      "durationSec": 2.4,
+      "ttsLatency": 125,
+      "decodeLatency": 3.58,
+      "playSchedulingLatency": 0.89,
+      "finalToSourceStart": 132
+    },
+    {
+      "turn": 2,
+      "sentence": 1,
+      "text": "응, 오늘 같은 날에는 가볍게 산책이라도 다녀오면 어떨까?",
+      "final": 1788696500423.2122,
+      "ttsReq": 1788696500425.2122,
+      "audioRx": 1788696500553.2122,
+      "decodeDone": 1788696500557,
+      "sourceStart": 1788696500558,
+      "sourceEnd": 1788696503158,
+      "durationSec": 2.6,
+      "ttsLatency": 128,
+      "decodeLatency": 3.68,
+      "playSchedulingLatency": 0.54,
+      "finalToSourceStart": 134
+    },
+    {
+      "turn": 2,
+      "sentence": 2,
+      "text": "내가 좋아하는 노래를 흥얼거리면서 걷고 싶어.",
+      "final": 1788696503437.6345,
+      "ttsReq": 1788696503439.6345,
+      "audioRx": 1788696503540.6345,
+      "decodeDone": 1788696503544,
+      "sourceStart": 1788696503544,
+      "sourceEnd": 1788696505744,
+      "durationSec": 2.2,
+      "ttsLatency": 101,
+      "decodeLatency": 3.12,
+      "playSchedulingLatency": 0.43,
+      "finalToSourceStart": 107
+    },
+    {
+      "turn": 3,
+      "sentence": 1,
+      "text": "네가 좋아하는 음악은 어떤 장르야?",
+      "final": 1788696506024.384,
+      "ttsReq": 1788696506026.384,
+      "audioRx": 1788696506124.384,
+      "decodeDone": 1788696506128,
+      "sourceStart": 1788696506129,
+      "sourceEnd": 1788696507929,
+      "durationSec": 1.8,
+      "ttsLatency": 98,
+      "decodeLatency": 3.29,
+      "playSchedulingLatency": 0.84,
+      "finalToSourceStart": 104
+    },
+    {
+      "turn": 3,
+      "sentence": 2,
+      "text": "언제든지 말해주면 함께 들으면서 이야기 나눌 수 있어!",
+      "final": 1788696508208.7163,
+      "ttsReq": 1788696508210.7163,
+      "audioRx": 1788696508308.7163,
+      "decodeDone": 1788696508313,
+      "sourceStart": 1788696508313,
+      "sourceEnd": 1788696510813,
+      "durationSec": 2.5,
+      "ttsLatency": 98,
+      "decodeLatency": 3.61,
+      "playSchedulingLatency": 0.85,
+      "finalToSourceStart": 105
+    },
+    {
+      "turn": 4,
+      "sentence": 1,
+      "text": "지금 컴퓨터 앞에서 작업하고 있는 거야?",
+      "final": 1788696511093.3784,
+      "ttsReq": 1788696511095.3784,
+      "audioRx": 1788696511223.3784,
+      "decodeDone": 1788696511226,
+      "sourceStart": 1788696511227,
+      "sourceEnd": 1788696513127,
+      "durationSec": 1.9,
+      "ttsLatency": 128,
+      "decodeLatency": 2.92,
+      "playSchedulingLatency": 0.49,
+      "finalToSourceStart": 134
+    },
+    {
+      "turn": 4,
+      "sentence": 2,
+      "text": "너무 무리하지 말고 가끔 스트레칭도 잊지 마!",
+      "final": 1788696513406.9817,
+      "ttsReq": 1788696513408.9817,
+      "audioRx": 1788696513508.9817,
+      "decodeDone": 1788696513512,
+      "sourceStart": 1788696513513,
+      "sourceEnd": 1788696515813,
+      "durationSec": 2.3,
+      "ttsLatency": 100,
+      "decodeLatency": 2.93,
+      "playSchedulingLatency": 0.48,
+      "finalToSourceStart": 106
+    },
+    {
+      "turn": 5,
+      "sentence": 1,
+      "text": "항상 곁에서 널 응원하고 있으니까 힘내.",
+      "final": 1788696516092.5884,
+      "ttsReq": 1788696516094.5884,
+      "audioRx": 1788696516218.5884,
+      "decodeDone": 1788696516222,
+      "sourceStart": 1788696516222,
+      "sourceEnd": 1788696518222,
+      "durationSec": 2,
+      "ttsLatency": 124,
+      "decodeLatency": 2.99,
+      "playSchedulingLatency": 0.48,
+      "finalToSourceStart": 130
+    },
+    {
+      "turn": 5,
+      "sentence": 2,
+      "text": "오늘 하루도 너에게 멋진 시간들이 가득했으면 좋겠어!",
+      "final": 1788696518502.2634,
+      "ttsReq": 1788696518504.2634,
+      "audioRx": 1788696518632.2634,
+      "decodeDone": 1788696518636,
+      "sourceStart": 1788696518636,
+      "sourceEnd": 1788696521336,
+      "durationSec": 2.7,
+      "ttsLatency": 128,
+      "decodeLatency": 3.13,
+      "playSchedulingLatency": 0.5,
+      "finalToSourceStart": 134
+    }
+  ],
+  "p50": 130,
+  "max": 134,
+  "baseLatencyMs": 11.6,
+  "outputLatencyMs": 13.4,
+  "telemetryRows": [
+    {
+      "t": 0,
+      "rawRms": 0,
+      "smoothedRms": 0,
+      "mouthOpen": 0,
+      "speaking": true
+    },
+    {
+      "t": 100,
+      "rawRms": 0,
+      "smoothedRms": 0,
+      "mouthOpen": 0,
+      "speaking": true
+    },
+    {
+      "t": 200,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0294,
+      "mouthOpen": 0.3246,
+      "speaking": true
+    },
+    {
+      "t": 300,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0435,
+      "mouthOpen": 0.458,
+      "speaking": true
+    },
+    {
+      "t": 400,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0503,
+      "mouthOpen": 0.5158,
+      "speaking": true
+    },
+    {
+      "t": 500,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0536,
+      "mouthOpen": 0.5424,
+      "speaking": true
+    },
+    {
+      "t": 600,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0551,
+      "mouthOpen": 0.555,
+      "speaking": true
+    },
+    {
+      "t": 700,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0559,
+      "mouthOpen": 0.561,
+      "speaking": true
+    },
+    {
+      "t": 800,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0562,
+      "mouthOpen": 0.5638,
+      "speaking": true
+    },
+    {
+      "t": 900,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0564,
+      "mouthOpen": 0.5652,
+      "speaking": true
+    },
+    {
+      "t": 1000,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0565,
+      "mouthOpen": 0.5658,
+      "speaking": true
+    },
+    {
+      "t": 1100,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0565,
+      "mouthOpen": 0.5662,
+      "speaking": true
+    },
+    {
+      "t": 1200,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0565,
+      "mouthOpen": 0.5663,
+      "speaking": true
+    },
+    {
+      "t": 1300,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0565,
+      "mouthOpen": 0.5664,
+      "speaking": true
+    },
+    {
+      "t": 1400,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0565,
+      "mouthOpen": 0.5664,
+      "speaking": true
+    },
+    {
+      "t": 1500,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0566,
+      "mouthOpen": 0.5664,
+      "speaking": true
+    },
+    {
+      "t": 1600,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0566,
+      "mouthOpen": 0.5664,
+      "speaking": true
+    },
+    {
+      "t": 1700,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0566,
+      "mouthOpen": 0.5665,
+      "speaking": true
+    },
+    {
+      "t": 1800,
+      "rawRms": 0.0566,
+      "smoothedRms": 0.0566,
+      "mouthOpen": 0.5665,
+      "speaking": true
+    },
+    {
+      "t": 1900,
+      "rawRms": 0,
+      "smoothedRms": 0.0271,
+      "mouthOpen": 0.3008,
+      "speaking": true
+    }
+  ],
+  "telemetrySilencePass": false,
+  "telemetryVoicedPass": true,
+  "negativeGapCount": 0,
+  "overlapGaps": [
+    411.6650390625,
+    414.42236328125,
+    386.74951171875,
+    384.332275390625,
+    384.662109375,
+    413.603271484375,
+    385.606689453125,
+    409.675048828125,
+    413.829833984375
+  ],
+  "startWallClock": "2026-09-06T12:08:15.139Z",
+  "endWallClock": "2026-09-06T12:13:15.195Z",
+  "exactDurationSec": 300,
+  "startHeapMB": 4.84,
+  "endHeapMB": 4.12,
+  "peakHeapMB": 4.84,
+  "contextsCreated": 1,
+  "contextsActive": 1,
+  "sourcesCreated": 20,
+  "sourcesActiveAfterTest": 0,
+  "rafActiveAfterTest": 0,
+  "memoryLogs": [
+    {
+      "elapsedSec": 30,
+      "heapUsedMB": 4,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.48
+    },
+    {
+      "elapsedSec": 60,
+      "heapUsedMB": 4,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.48
+    },
+    {
+      "elapsedSec": 90,
+      "heapUsedMB": 4.01,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.5
+    },
+    {
+      "elapsedSec": 120,
+      "heapUsedMB": 4.02,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.5
+    },
+    {
+      "elapsedSec": 150,
+      "heapUsedMB": 4.04,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.52
+    },
+    {
+      "elapsedSec": 180,
+      "heapUsedMB": 4.07,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.54
+    },
+    {
+      "elapsedSec": 210,
+      "heapUsedMB": 4.08,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.55
+    },
+    {
+      "elapsedSec": 240,
+      "heapUsedMB": 4.09,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.56
+    },
+    {
+      "elapsedSec": 270,
+      "heapUsedMB": 4.11,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.58
+    },
+    {
+      "elapsedSec": 300,
+      "heapUsedMB": 4.12,
+      "heapTotalMB": 5.57,
+      "rssMB": 39.79
+    }
+  ]
+}

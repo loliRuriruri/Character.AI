@@ -18,8 +18,11 @@ const GESTURE_START_OFFSETS: Record<string, number> = {
   wave: 1.10,    // 1.10s rest pause skip -> immediate right hand wave elevation
   bow: 0.0,      // Standing bow
   explain: 0.0,  // Native VRMA Show full body
+  talk: 0.0,     // Native VRMA Show full body / conversational
   laugh: 0.0,    // Native VRMA Peace sign
   think: 0.30,   // Hand to chin rise
+  thinking: 0.30,// Hand to chin rise
+  curious: 0.30, // Hand to chin rise / curious
   peace: 0.0,    // Native VRMA Peace sign
   proud: 0.0,    // Native VRMA Model pose
   cheer: 0.0,    // Native VRMA Show full body
@@ -479,7 +482,13 @@ export class MotionDirector {
     // Cross-fade out previous gesture if still active
     if (this.currentAction) {
       if (this.currentAction !== targetAction) {
-        this.currentAction.fadeOut(0.3);
+        const prevAction = this.currentAction;
+        prevAction.fadeOut(0.3);
+        setTimeout(() => {
+          if (prevAction !== this.currentAction) {
+            prevAction.stop();
+          }
+        }, 350);
       } else {
         this.currentAction.reset();
       }
@@ -530,12 +539,19 @@ export class MotionDirector {
       this.idleAction.play();
     }
     if (this.currentAction) {
+      const prevAction = this.currentAction;
       if (this.idleAction) {
         this.currentAction.crossFadeTo(this.idleAction, duration, false);
       } else {
         this.currentAction.fadeOut(duration);
       }
       this.currentAction = null;
+      // Option A: Stop clamped gesture action once crossfade finishes to release bone locks
+      setTimeout(() => {
+        if (prevAction !== this.currentAction) {
+          prevAction.stop();
+        }
+      }, Math.round(duration * 1000) + 50);
     } else if (this.idleAction) {
       this.idleAction.fadeIn(duration);
     }
@@ -567,11 +583,14 @@ export class MotionDirector {
       { name: "peace", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace sign
       { name: "laugh", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace / Happy
       { name: "explain", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },  // Official VRoid Show full body
+      { name: "talk", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },     // Official VRoid Conversational talk/explain
       { name: "cheer", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },    // Official VRoid Show full body
       { name: "proud", file: "./VRMA_MotionPack/vrma/VRMA_06.vrma" },    // Official VRoid Model pose
       { name: "shoot", file: "./VRMA_MotionPack/vrma/VRMA_04.vrma" },    // Official VRoid Shoot (빵야 손총)
       { name: "spin", file: "./VRMA_MotionPack/vrma/VRMA_05.vrma" },     // Official VRoid Spin (360도 회전)
       { name: "think", file: "./vrma/mixamo/think.fbx" },                // Mixamo Thinking pose
+      { name: "thinking", file: "./vrma/mixamo/think.fbx" },             // Mixamo Thinking pose (alias)
+      { name: "curious", file: "./vrma/mixamo/think.fbx" },              // Mixamo Inquisitive / Curious pose
       { name: "nod", file: "./vrma/mixamo/nod.fbx" },                    // Mixamo subtle quick nod
       { name: "bow", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },      // Official VRoid Bow / Greeting (정중한 인사)
     ];
@@ -947,7 +966,7 @@ export class MotionDirector {
     } else if (this.currentGesture === "cheer") {
       rEuler.set(0.28, 0.18, -0.22);
       lEuler.set(0.28, -0.18, 0.22);
-    } else if (this.currentGesture === "thinking") {
+    } else if (this.currentGesture === "thinking" || this.currentGesture === "think") {
       rEuler.set(0.38, 0.25, 0.22);
       lEuler.set(0.18, -0.12, 0.22);
     } else if (this.currentGesture === "shy") {
@@ -1064,9 +1083,14 @@ export class MotionDirector {
     if (!node) return;
     const values: number[] = [];
     const q = new THREE.Quaternion();
+    const isVRM0 = (this.vrm?.meta as any)?.metaVersion === "0";
     for (const eu of eulers) {
       q.setFromEuler(eu);
-      values.push(q.x, q.y, q.z, q.w);
+      if (isVRM0) {
+        values.push(-q.x, q.y, -q.z, q.w);
+      } else {
+        values.push(q.x, q.y, q.z, q.w);
+      }
     }
     tracks.push(new THREE.QuaternionKeyframeTrack(`${node.name}.quaternion`, times, values));
   }

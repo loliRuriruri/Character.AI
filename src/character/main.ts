@@ -3,6 +3,7 @@ import { stripEmotionTags } from "../shared/emotion";
 import type { EmotionName, GestureName, ViewMode } from "../shared/types";
 import { VrmStage } from "./VrmStage";
 import { motionEventBus } from "./motionEventBus";
+import { audioContextPlayer } from "./audioContextPlayer";
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const boot = document.getElementById("boot");
@@ -43,6 +44,7 @@ function koreanVoice(): SpeechSynthesisVoice | undefined {
 }
 
 function stopAudio(): void {
+  audioContextPlayer.stop();
   audioQueue.length = 0;
   isQueuePlaying = false;
   stage.setSpeaking(false);
@@ -95,44 +97,19 @@ function playNextInQueue(): void {
 }
 
 function playSingleWav(b64: string, text: string, durationHint: number, segmentId?: string): void {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const blob = new Blob([bytes], { type: "audio/wav" });
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  currentAudio = audio;
+  stage.speakVisemes(text, Math.max(0.4, durationHint));
 
-  const startVisemes = (dur: number) => {
-    stage.speakVisemes(text, Math.max(0.4, dur));
-  };
-
-  audio.onloadedmetadata = () => {
-    const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : durationHint;
-    startVisemes(dur);
-  };
-
-  audio.onended = () => {
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-    if (segmentId) stage.notifySegmentEnded(segmentId);
-    // 280ms natural human breathing pause between complete sentences (prevents rushed machine-gun pacing)
-    setTimeout(() => playNextInQueue(), 280);
-  };
-
-  audio.onerror = () => {
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-    if (segmentId) stage.notifySegmentEnded(segmentId);
-    playNextInQueue();
-  };
-
-  void audio.play().catch(() => {
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-    if (segmentId) stage.notifySegmentEnded(segmentId);
-    playNextInQueue();
-  });
+  audioContextPlayer.play(b64)
+    .then(() => {
+      if (segmentId) stage.notifySegmentEnded(segmentId);
+      // 280ms natural human breathing pause between complete sentences (prevents rushed machine-gun pacing)
+      setTimeout(() => playNextInQueue(), 280);
+    })
+    .catch((err) => {
+      console.error("[AudioPlayer Error]", err);
+      if (segmentId) stage.notifySegmentEnded(segmentId);
+      playNextInQueue();
+    });
 }
 
 function playSingleWeb(text: string, segmentId?: string): void {

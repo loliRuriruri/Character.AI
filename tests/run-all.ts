@@ -6,6 +6,10 @@ import { testMemoryManager } from "./memory-manager.test";
 import { testSceneState } from "./scene-state.test";
 import { testPromptComposer } from "./prompt-composer.test";
 import { testProviderHealth } from "./provider-health.test";
+import { testAudioRms } from "./audio-rms.test";
+import { testAudioStopRace } from "./audio-stop-race.test";
+import { testAudioQueueCadence } from "./audio-queue-cadence.test";
+import { testMotionDirectorClamp } from "./motion-director-clamp.test";
 
 console.log("==================================================");
 console.log("       MikuChat-v3 Formal Test Suite Runner       ");
@@ -20,6 +24,10 @@ const suites = [
   { name: "Dynamic SceneState & Patching", fn: testSceneState },
   { name: "PromptComposer & Late AuthorNote", fn: testPromptComposer },
   { name: "ProviderHealth Monitor", fn: testProviderHealth },
+  { name: "Audio RMS Math & Thresholds", fn: testAudioRms },
+  { name: "Audio Stop Race & Identity Token Guard", fn: testAudioStopRace },
+  { name: "Audio Queue & 280ms Cadence Overlap", fn: testAudioQueueCadence },
+  { name: "MotionDirector Clamp & Mocap Binding", fn: testMotionDirectorClamp },
 ];
 
 let passed = 0;
