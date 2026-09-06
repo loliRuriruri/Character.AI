@@ -1,5 +1,5 @@
 import { Ipc } from "../shared/ipc";
-import type { AppSettings, VoiceCatalog } from "../shared/types";
+import type { AppSettings, VoiceCatalog, FishVoiceFavorite } from "../shared/types";
 
 const root = document.getElementById("root")!;
 root.innerHTML = `
@@ -136,43 +136,69 @@ root.innerHTML = `
             </div>
           </label>
           <label style="font-size:11px;">캐릭터 보이스 모델 ID (Reference ID)
-            <input id="fishVoiceId" placeholder="acc8237220d8470985ec9be6c4c480a9" style="width:100%; margin-top:2px;" />
+            <div style="display:flex; gap:6px; margin-top:2px;">
+              <input id="fishVoiceId" placeholder="acc8237220d8470985ec9be6c4c480a9" style="flex:1;" />
+              <button id="btn-add-current-fav" type="button" style="background:rgba(255,215,0,0.15); border:1px solid rgba(255,215,0,0.4); color:#ffd700; font-size:10.5px; font-weight:700; border-radius:6px; padding:0 10px; cursor:pointer; white-space:nowrap;" title="현재 입력된 Voice ID를 즐겨찾기에 등록">⭐ 즐겨찾기 추가</button>
+            </div>
           </label>
-          <div style="font-size:10px; color:#8aa8b0; display:flex; flex-direction:column; gap:4px; margin-top:4px;">
-            <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-              <span style="color:#39c5bb; font-weight:700;">🎵 보컬로이드:</span>
-              <button type="button" class="btn-fish-preset" data-id="acc8237220d8470985ec9be6c4c480a9" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">미쿠 (글로벌)</button>
-              <button type="button" class="btn-fish-preset" data-id="6717a74323274cb296ea9a0da654c977" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">미쿠 (일본어)</button>
+
+          <!-- ⭐ 내 즐겨찾기 보이스 -->
+          <div style="margin-top:6px; padding:6px 8px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,215,0,0.3);">
+            <div style="font-size:10.5px; font-weight:700; color:#ffd700; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+              <span>⭐ 내 즐겨찾기 보이스</span>
+              <span id="fish-fav-count" style="color:#8aa8b0; font-size:9.5px;">(0개 등록됨)</span>
             </div>
-            <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-              <span style="color:#ffb432; font-weight:700;">⚔️ 원신/스타레일:</span>
-              <button type="button" class="btn-fish-preset" data-id="5ac6fb7171ba419190700620738209d8" style="background:rgba(255,180,50,0.15); border:1px solid rgba(255,180,50,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">⚡ 라이덴</button>
-              <button type="button" class="btn-fish-preset" data-id="bd08be872bc440918674af072944ba12" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">💧 후리나</button>
-              <button type="button" class="btn-fish-preset" data-id="4858e0be678c4449bf3a7646186edd42" style="background:rgba(100,255,150,0.15); border:1px solid rgba(100,255,150,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🌱 나히다</button>
-              <button type="button" class="btn-fish-preset" data-id="2879aac2931e450f8159d2f65cd918f4" style="background:rgba(255,107,138,0.15); border:1px solid rgba(255,107,138,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🔥 호두</button>
-              <button type="button" class="btn-fish-preset" data-id="7c0ab8e2b1714ce3a80f2622a5cc459c" style="background:rgba(255,139,167,0.15); border:1px solid rgba(255,139,167,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🌸 반디</button>
-              <button type="button" class="btn-fish-preset" data-id="4c0be7e14fa24928b4f2541ca49b57d0" style="background:rgba(180,100,255,0.15); border:1px solid rgba(180,100,255,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🕷️ 카프카</button>
-            </div>
-            <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-              <span style="color:#ff8ba7; font-weight:700;">📺 애니메이션/게임:</span>
-              <button type="button" class="btn-fish-preset" data-id="ce8248e10ec54d509f75945ad58ccfb6" style="background:rgba(255,139,167,0.15); border:1px solid rgba(255,139,167,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">⚔️ 프리렌</button>
-              <button type="button" class="btn-fish-preset" data-id="6eef1184091d4e96aceb90b4681a5400" style="background:rgba(255,139,167,0.15); border:1px solid rgba(255,139,167,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🎸 봇치</button>
-              <button type="button" class="btn-fish-preset" data-id="ffe41701970d4b339ef7906300716f99" style="background:rgba(255,180,50,0.15); border:1px solid rgba(255,180,50,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🥜 아냐</button>
-              <button type="button" class="btn-fish-preset" data-id="088d160c978f4e8ba98701af1f58f842" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">🌸 아로나</button>
+            <div id="fish-favorites-list" style="display:flex; gap:4px; flex-wrap:wrap; min-height:22px; align-items:center;">
+              <span style="font-size:9.5px; color:#607d8b; font-style:italic;">등록된 즐겨찾기가 없습니다. 아래 랭킹/검색에서 [⭐ 즐겨찾기]를 눌러 등록해보세요.</span>
             </div>
           </div>
 
-          <!-- Live In-app Character Search -->
-          <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,210,255,0.2);">
-            <div style="font-size:10.5px; font-weight:700; color:#00d2ff; margin-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
-              <span>🔍 Fish Audio 10만+ 전 세계 캐릭터 실시간 검색</span>
+          <div style="font-size:10px; color:#8aa8b0; display:flex; align-items:center; gap:4px; margin-top:4px;">
+            <span style="color:#39c5bb; font-weight:700;">🎵 기본 보컬로이드:</span>
+            <button type="button" class="btn-fish-preset" data-id="acc8237220d8470985ec9be6c4c480a9" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">미쿠 (글로벌)</button>
+            <button type="button" class="btn-fish-preset" data-id="6717a74323274cb296ea9a0da654c977" style="background:rgba(57,197,187,0.15); border:1px solid rgba(57,197,187,0.3); border-radius:4px; color:#e8fbff; font-size:10px; padding:2px 6px; cursor:pointer;">미쿠 (일본어)</button>
+          </div>
+
+          <!-- 🔥 전 세계 인기 보이스 랭킹 (장르별 & 국적별 좋아요 순) & 실시간 검색 -->
+          <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(0,210,255,0.2);">
+            <div style="font-size:10.5px; font-weight:700; color:#00d2ff; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+              <span>🔥 인기 보이스 랭킹 (좋아요 순) & 캐릭터 검색</span>
               <button id="btn-open-fish-models" type="button" style="background:transparent; border:none; color:#8aa8b0; font-size:9.5px; cursor:pointer; text-decoration:underline;">웹 라이브러리 둘러보기 ↗</button>
             </div>
-            <div style="display:flex; gap:4px;">
-              <input id="fish-search-input" placeholder="원하는 캐릭터 영문 검색 (예: Furina, Nahida, Bocchi, Anya, Rem...)" style="flex:1; font-size:10.5px; padding:4px 8px;" />
-              <button id="btn-fish-search" type="button" class="btn-file" style="background:#00d2ff; color:#06141d; font-weight:800; padding:4px 10px; border-radius:6px; font-size:11px; border:none; cursor:pointer; white-space:nowrap;">검색</button>
+
+            <!-- 장르 & 국적 필터 바 -->
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+              <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:9.5px; color:#8aa8b0;">장르 (Genre)</span>
+                <select id="fish-filter-genre" style="width:100%; font-size:10px; padding:3px 5px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
+                  <option value="anime">📺 애니메이션 (Anime)</option>
+                  <option value="gaming">🎮 게임 (Gaming)</option>
+                  <option value="character-voice">🎭 캐릭터/버튜버 (Character)</option>
+                  <option value="all">🌐 전체 장르 (All)</option>
+                </select>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:9.5px; color:#8aa8b0;">국적/언어 (Language)</span>
+                <select id="fish-filter-lang" style="width:100%; font-size:10px; padding:3px 5px; background:rgba(0,0,0,0.4); color:#e8fbff; border:1px solid rgba(0,210,255,0.3); border-radius:4px;">
+                  <option value="ja">🇯🇵 일본 (Japanese)</option>
+                  <option value="ko">🇰🇷 한국 (Korean)</option>
+                  <option value="en">🇺🇸 영어 (English)</option>
+                  <option value="zh">🇨🇳 중국 (Chinese)</option>
+                  <option value="all">🌐 전 세계 (All)</option>
+                </select>
+              </div>
+              <button id="btn-fetch-ranking" type="button" style="margin-top:14px; background:#00d2ff; color:#06141d; font-weight:800; padding:4px 10px; border-radius:6px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">🔥 랭킹 조회</button>
             </div>
-            <div id="fish-search-results" style="display:none; margin-top:6px; max-height:140px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;"></div>
+
+            <!-- 직접 검색 입력창 -->
+            <div style="display:flex; gap:4px; margin-bottom:6px;">
+              <input id="fish-search-input" placeholder="원하는 캐릭터 영문 직접 검색 (예: Furina, Hayami, Gojo...)" style="flex:1; font-size:10px; padding:4px 8px;" />
+              <button id="btn-fish-search" type="button" class="btn-file" style="background:#39c5bb; color:#06141d; font-weight:800; padding:4px 10px; border-radius:6px; font-size:10.5px; border:none; cursor:pointer; white-space:nowrap;">검색</button>
+            </div>
+
+            <div id="fish-search-results" style="display:flex; max-height:165px; overflow-y:auto; flex-direction:column; gap:4px; padding-right:2px;">
+              <span style="color:#8aa8b0; font-size:10px; padding:6px 0; text-align:center;">상단 [🔥 랭킹 조회]를 누르면 선택한 장르와 국적의 좋아요 1위 순위가 표시됩니다.</span>
+            </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
             <label style="font-size:11px; flex:1;">지연 시간 모드
@@ -417,17 +443,147 @@ const fishSearchInput = document.getElementById("fish-search-input") as HTMLInpu
 const btnFishSearch = document.getElementById("btn-fish-search") as HTMLButtonElement;
 const fishSearchResults = document.getElementById("fish-search-results") as HTMLDivElement;
 const btnOpenFishModels = document.getElementById("btn-open-fish-models") as HTMLButtonElement;
+const btnFetchRanking = document.getElementById("btn-fetch-ranking") as HTMLButtonElement;
+const fishFilterGenre = document.getElementById("fish-filter-genre") as HTMLSelectElement;
+const fishFilterLang = document.getElementById("fish-filter-lang") as HTMLSelectElement;
+const btnAddCurrentFav = document.getElementById("btn-add-current-fav") as HTMLButtonElement;
+
+let currentFavorites: FishVoiceFavorite[] = [];
+
+function loadFavorites(fromSettings?: FishVoiceFavorite[]) {
+  if (fromSettings && Array.isArray(fromSettings)) {
+    currentFavorites = [...fromSettings];
+  } else {
+    try {
+      const stored = localStorage.getItem("fishFavorites");
+      if (stored) currentFavorites = JSON.parse(stored);
+    } catch {}
+  }
+  renderFavorites();
+}
+
+function saveFavorites(nextFavs: FishVoiceFavorite[]) {
+  currentFavorites = nextFavs;
+  try {
+    localStorage.setItem("fishFavorites", JSON.stringify(currentFavorites));
+  } catch {}
+  window.miku.send(Ipc.SETTINGS_UPDATE, { fishFavorites: currentFavorites });
+  renderFavorites();
+  updateCardFavoriteButtons();
+}
+
+function renderFavorites() {
+  const container = document.getElementById("fish-favorites-list");
+  const countSpan = document.getElementById("fish-fav-count");
+  if (!container) return;
+  if (countSpan) countSpan.textContent = `(${currentFavorites.length}개 등록됨)`;
+
+  if (currentFavorites.length === 0) {
+    container.innerHTML = '<span style="font-size:9.5px; color:#607d8b; font-style:italic;">등록된 즐겨찾기가 없습니다. 아래 랭킹/검색에서 [⭐ 즐겨찾기]를 눌러 등록해보세요.</span>';
+    return;
+  }
+
+  container.innerHTML = "";
+  const curVid = fishVoiceIdInput?.value.trim();
+
+  currentFavorites.forEach((fav) => {
+    const chip = document.createElement("div");
+    const isSelected = curVid === fav.id;
+    chip.style.cssText = `display:inline-flex; align-items:center; background:${isSelected ? 'rgba(57,197,187,0.25)' : 'rgba(255,215,0,0.15)'}; border:1px solid ${isSelected ? 'rgba(57,197,187,0.6)' : 'rgba(255,215,0,0.35)'}; border-radius:4px; overflow:hidden; font-size:10px; margin-bottom:2px;`;
+
+    const selectBtn = document.createElement("button");
+    selectBtn.type = "button";
+    selectBtn.title = `클릭하여 '${fav.title}' 보이스 즉시 적용`;
+    selectBtn.style.cssText = "background:transparent; border:none; color:#e8fbff; padding:2px 6px; cursor:pointer; display:flex; align-items:center; gap:3px;";
+    const langBadge = (fav.languages || []).length > 0 ? `<span style="color:#8aa8b0; font-size:8.5px;">[${fav.languages!.join(",")}]</span>` : "";
+    selectBtn.innerHTML = `<span style="color:#ffd700;">⭐</span><span style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:${isSelected ? '700' : '500'};">${fav.title}</span>${langBadge}`;
+    selectBtn.addEventListener("click", () => {
+      if (fishVoiceIdInput) {
+        fishVoiceIdInput.value = fav.id;
+        localStorage.setItem("fishVoiceId", fav.id);
+        window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: fav.id, ttsProvider: "fish" });
+        renderFavorites();
+      }
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.title = "즐겨찾기 삭제";
+    delBtn.style.cssText = "background:transparent; border:none; border-left:1px solid rgba(255,215,0,0.2); color:#ff6b8b; padding:2px 5px; cursor:pointer; font-weight:bold; font-size:9.5px;";
+    delBtn.textContent = "✕";
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const next = currentFavorites.filter((f) => f.id !== fav.id);
+      saveFavorites(next);
+    });
+
+    chip.appendChild(selectBtn);
+    chip.appendChild(delBtn);
+    container.appendChild(chip);
+  });
+}
+
+function updateCardFavoriteButtons() {
+  const cards = document.querySelectorAll(".fish-card");
+  cards.forEach((card) => {
+    const id = (card as HTMLElement).dataset.id;
+    const favBtn = card.querySelector(".btn-fav-toggle") as HTMLButtonElement;
+    if (!id || !favBtn) return;
+    const isFav = currentFavorites.some((f) => f.id === id);
+    if (isFav) {
+      favBtn.textContent = "★ 등록됨";
+      favBtn.style.background = "rgba(255,215,0,0.25)";
+      favBtn.style.color = "#ffd700";
+      favBtn.style.border = "1px solid #ffd700";
+    } else {
+      favBtn.textContent = "⭐ 즐겨찾기";
+      favBtn.style.background = "rgba(255,215,0,0.1)";
+      favBtn.style.color = "#ffd700";
+      favBtn.style.border = "1px solid rgba(255,215,0,0.3)";
+    }
+  });
+}
+
+btnAddCurrentFav?.addEventListener("click", () => {
+  const id = fishVoiceIdInput?.value.trim();
+  if (!id) {
+    alert("즐겨찾기에 등록할 캐릭터 보이스 모델 ID가 비어있습니다.");
+    fishVoiceIdInput?.focus();
+    return;
+  }
+  if (currentFavorites.some((f) => f.id === id)) {
+    alert("이미 즐겨찾기에 등록되어 있는 보이스 ID입니다.");
+    return;
+  }
+  const name = prompt("즐겨찾기에 등록할 보이스 이름을 입력하세요:", "내 보이스");
+  if (name && name.trim()) {
+    const next = [{ id, title: name.trim() }, ...currentFavorites];
+    saveFavorites(next);
+  }
+});
 
 btnOpenFishModels?.addEventListener("click", () => {
   window.miku.send(Ipc.OPEN_EXTERNAL_URL, "https://fish.audio/models/");
 });
 
+function triggerRankingQuery() {
+  const tag = fishFilterGenre?.value || "anime";
+  const language = fishFilterLang?.value || "ja";
+  if (fishSearchResults) {
+    fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:6px 0; text-align:center;">🔥 좋아요 1위 순위 데이터 불러오는 중…</span>';
+  }
+  window.miku.send(Ipc.SEARCH_FISH_MODELS, { tag, language, pageSize: 16 });
+}
+
+btnFetchRanking?.addEventListener("click", triggerRankingQuery);
+fishFilterGenre?.addEventListener("change", triggerRankingQuery);
+fishFilterLang?.addEventListener("change", triggerRankingQuery);
+
 btnFishSearch?.addEventListener("click", () => {
   const q = fishSearchInput?.value.trim();
   if (!q) return;
   if (fishSearchResults) {
-    fishSearchResults.style.display = "flex";
-    fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px;">🔍 Fish Audio 라이브러리 검색 중…</span>';
+    fishSearchResults.innerHTML = '<span style="color:#00d2ff; font-size:10.5px; padding:6px 0; text-align:center;">🔍 Fish Audio 라이브러리 검색 중…</span>';
   }
   window.miku.send(Ipc.SEARCH_FISH_MODELS, q);
 });
@@ -442,21 +598,41 @@ fishSearchInput?.addEventListener("keydown", (e) => {
 window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
   const r = res as { ok: boolean; items?: any[]; error?: string };
   if (!fishSearchResults) return;
-  fishSearchResults.style.display = "flex";
   if (!r || !r.ok || !r.items || r.items.length === 0) {
-    fishSearchResults.innerHTML = '<span style="color:#8aa8b0; font-size:10.5px;">검색 결과가 없습니다. 다른 영문 캐릭터명으로 검색해보세요.</span>';
+    fishSearchResults.innerHTML = '<span style="color:#8aa8b0; font-size:10.5px; padding:6px 0; text-align:center;">검색/랭킹 결과가 없습니다. 다른 조건으로 검색해보세요.</span>';
     return;
   }
 
   fishSearchResults.innerHTML = "";
   r.items.forEach((item) => {
     const card = document.createElement("div");
-    card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:4px 8px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,210,255,0.25); border-radius:6px; font-size:10.5px;";
+    card.className = "fish-card";
+    card.dataset.id = item._id;
+    card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:5px 8px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,210,255,0.25); border-radius:6px; font-size:10.5px;";
     
     const info = document.createElement("div");
     info.style.cssText = "overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:6px;";
-    info.innerHTML = `<span style="font-weight:700; color:#e8fbff;">${item.title}</span> <span style="color:#8aa8b0; font-size:9.5px;">[${(item.languages || []).join(",")}] ❤️ ${item.like_count || 0}</span>`;
+    const likesFormatted = (item.like_count || 0).toLocaleString();
+    info.innerHTML = `<span style="font-weight:700; color:#e8fbff;">${item.title}</span> <span style="color:#8aa8b0; font-size:9.5px;">[${(item.languages || []).join(",")}]</span> <span style="color:#ff6b8b; font-weight:700; font-size:9.5px;">❤️ ${likesFormatted}</span>`;
     
+    const btnGroup = document.createElement("div");
+    btnGroup.style.cssText = "display:flex; gap:4px; align-items:center;";
+
+    const isFav = currentFavorites.some((f) => f.id === item._id);
+    const favBtn = document.createElement("button");
+    favBtn.type = "button";
+    favBtn.className = "btn-fav-toggle";
+    favBtn.style.cssText = `font-size:10px; font-weight:700; border-radius:4px; padding:2px 6px; cursor:pointer; white-space:nowrap; ${isFav ? 'background:rgba(255,215,0,0.25); color:#ffd700; border:1px solid #ffd700;' : 'background:rgba(255,215,0,0.1); color:#ffd700; border:1px solid rgba(255,215,0,0.3);'}`;
+    favBtn.textContent = isFav ? "★ 등록됨" : "⭐ 즐겨찾기";
+    favBtn.addEventListener("click", () => {
+      const already = currentFavorites.some((f) => f.id === item._id);
+      if (already) {
+        saveFavorites(currentFavorites.filter((f) => f.id !== item._id));
+      } else {
+        saveFavorites([{ id: item._id, title: item.title, languages: item.languages || [] }, ...currentFavorites]);
+      }
+    });
+
     const selBtn = document.createElement("button");
     selBtn.type = "button";
     selBtn.style.cssText = "background:#00d2ff; color:#06141d; font-weight:800; border:none; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer; white-space:nowrap;";
@@ -468,12 +644,16 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
         window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: item._id, ttsProvider: "fish" });
         selBtn.textContent = "✓ 적용됨";
         selBtn.style.background = "#64ff96";
+        renderFavorites();
         setTimeout(() => { selBtn.textContent = "선택"; selBtn.style.background = "#00d2ff"; }, 1500);
       }
     });
 
+    btnGroup.appendChild(favBtn);
+    btnGroup.appendChild(selBtn);
+
     card.appendChild(info);
-    card.appendChild(selBtn);
+    card.appendChild(btnGroup);
     fishSearchResults.appendChild(card);
   });
 });
@@ -499,6 +679,7 @@ saveBtn.addEventListener("click", () => {
     fishApiKey: fishApiKeyInput ? fishApiKeyInput.value.trim() : "",
     fishVoiceId: fishVoiceIdInput ? fishVoiceIdInput.value.trim() : "",
     fishLatency: (fishLatencySelect ? fishLatencySelect.value : "low") as any,
+    fishFavorites: currentFavorites,
   };
   window.miku.send(Ipc.SETTINGS_UPDATE, next);
   window.miku.send(Ipc.CLOSE_SETTINGS);
@@ -552,6 +733,7 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
   if (fishApiKeyInput) fishApiKeyInput.value = state.settings.fishApiKey || "";
   if (fishVoiceIdInput) fishVoiceIdInput.value = state.settings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
   if (fishLatencySelect) fishLatencySelect.value = state.settings.fishLatency || "low";
+  loadFavorites(state.settings.fishFavorites);
   updateTtsProviderUi(state.settings.ttsProvider);
     updateKeyHint();
 

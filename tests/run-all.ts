@@ -12,6 +12,7 @@ import { testAudioQueueCadence } from "./audio-queue-cadence.test";
 import { testMotionDirectorClamp } from "./motion-director-clamp.test";
 import { testLipSyncBridge } from "./lipsync-bridge.test";
 import { testAudioTailTrimmer } from "./audio-tail-trimmer.test";
+import { testVoiceFavorites } from "./voice-favorites.test";
 
 console.log("==================================================");
 console.log("       MikuChat-v3 Formal Test Suite Runner       ");
@@ -32,6 +33,7 @@ const suites = [
   { name: "MotionDirector Clamp & Mocap Binding", fn: testMotionDirectorClamp },
   { name: "LipSync Bridge & Mouth Arbitration", fn: testLipSyncBridge },
   { name: "Audio Tail Trimmer (Anti-Scream/Groan Failsafe)", fn: testAudioTailTrimmer },
+  { name: "Voice Favorites & Ranking Query", fn: testVoiceFavorites },
 ];
 
 let passed = 0;

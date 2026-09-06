@@ -240,6 +240,26 @@ function populateQuickVoices(provider: string): void {
   if (provider === "fish") {
     const curFishId = (currentAppSettings?.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9").trim();
     let found = false;
+
+    const favs = currentAppSettings?.fishFavorites || [];
+    if (favs.length > 0) {
+      const favGroup = document.createElement("optgroup");
+      favGroup.label = "⭐ 내 즐겨찾기 보이스";
+      favs.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = `⭐ ${item.title}`;
+        if (item.id === curFishId) {
+          opt.selected = true;
+          found = true;
+        }
+        favGroup.appendChild(opt);
+      });
+      quickVoiceSelect.appendChild(favGroup);
+    }
+
+    const presetGroup = document.createElement("optgroup");
+    presetGroup.label = "🎵 기본 프리셋";
     FISH_VOICE_PRESETS.forEach((item) => {
       const opt = document.createElement("option");
       opt.value = item.id;
@@ -248,8 +268,10 @@ function populateQuickVoices(provider: string): void {
         opt.selected = true;
         found = true;
       }
-      quickVoiceSelect.appendChild(opt);
+      presetGroup.appendChild(opt);
     });
+    quickVoiceSelect.appendChild(presetGroup);
+
     if (!found && curFishId) {
       const opt = document.createElement("option");
       opt.value = curFishId;

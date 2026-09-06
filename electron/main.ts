@@ -1019,19 +1019,41 @@ function setupIpc(): void {
     
     ipcMain.on(Ipc.SEARCH_FISH_MODELS, async (ev, query: unknown) => {
       try {
-        const q = String(query || "").trim();
-        if (!q) {
-          ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: [] });
-          return;
+        const params = new URLSearchParams();
+        if (typeof query === "object" && query !== null) {
+          const opt = query as { tag?: string; language?: string; title?: string; pageSize?: number };
+          if (opt.tag && opt.tag !== "all") params.set("tag", opt.tag);
+          if (opt.language && opt.language !== "all") params.set("language", opt.language);
+          if (opt.title) params.set("title", opt.title);
+          params.set("page_size", String(opt.pageSize || 16));
+        } else {
+          const q = String(query || "").trim();
+          if (!q) {
+            ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: [] });
+            return;
+          }
+          if (q.startsWith("tag:")) {
+            const parts = q.slice(4).split(":");
+            const tag = parts[0]?.trim();
+            const lang = parts[1]?.trim();
+            if (tag && tag !== "all") params.set("tag", tag);
+            if (lang && lang !== "all") params.set("language", lang);
+            params.set("page_size", "16");
+          } else {
+            params.set("title", q);
+            params.set("page_size", "14");
+          }
         }
-        const resp = await fetch(`https://api.fish.audio/model?title=${encodeURIComponent(q)}&page_size=8`, {
+
+        const apiUrl = `https://api.fish.audio/model?${params.toString()}`;
+        const resp = await fetch(apiUrl, {
           headers: { "User-Agent": "Mozilla/5.0" },
         });
         if (!resp.ok) throw new Error("Fish Audio 검색 실패: " + resp.status);
         const data = (await resp.json()) as { items?: any[] };
-        ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: data.items || [] });
+        ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: true, items: data.items || [], query });
       } catch (err: any) {
-        ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: false, error: err.message });
+        ev.sender.send(Ipc.SEARCH_FISH_MODELS, { ok: false, error: err.message, query });
       }
     });
 

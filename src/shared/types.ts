@@ -64,9 +64,16 @@ export type AppSettings = {
   fishApiKey: string;
   fishVoiceId: string;
   fishLatency: "low" | "balanced" | "normal";
+  fishFavorites?: FishVoiceFavorite[];
   userName?: string;
   callName?: string;
   relationship?: string;
+};
+
+export type FishVoiceFavorite = {
+  id: string;
+  title: string;
+  languages?: string[];
 };
 
 export const defaultSettings: AppSettings = {
@@ -95,6 +102,7 @@ export const defaultSettings: AppSettings = {
   fishApiKey: "",
   fishVoiceId: "acc8237220d8470985ec9be6c4c480a9",
   fishLatency: "low",
+  fishFavorites: [],
   userName: "마스터",
   callName: "마스터",
   relationship: "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",
