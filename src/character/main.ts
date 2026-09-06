@@ -360,6 +360,7 @@ ctxMenu.innerHTML = `
   <div class="ctx-item" data-act="view-upper" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">👤 상반신 모드</div>
   <div class="ctx-item" data-act="view-pip" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">🪟 PIP 미니 위젯</div>
   <div style="height:1px; background:rgba(57,197,187,0.2); margin:4px 0;"></div>
+  <div class="ctx-item" data-act="toggle-motion-hud" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">⚡ 모션/상태 HUD 토글</div>
   <div class="ctx-item" data-act="toggle-chat" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">💬 채팅창 토글</div>
   <div class="ctx-item" data-act="toggle-mute" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">🔊 음소거 토글</div>
   <div class="ctx-item" data-act="open-settings" style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:6px; align-items:center;">⚙️ 환경설정</div>
@@ -378,6 +379,11 @@ function isOverInteractiveUI(x: number, y: number): boolean {
   }
   if (hudVisible && hud && hud.style.display === "block") {
     const r = hud.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+  }
+  const motionHud = document.getElementById("motion-debug-hud");
+  if (motionHud && motionHud.style.display !== "none") {
+    const r = motionHud.getBoundingClientRect();
     if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
   }
   return false;
@@ -400,6 +406,12 @@ function handleMenuAction(act: string | undefined): void {
   if (act === "view-full") window.miku.send(Ipc.SET_VIEW_MODE, "full");
   else if (act === "view-upper") window.miku.send(Ipc.SET_VIEW_MODE, "upper");
   else if (act === "view-pip") window.miku.send(Ipc.SET_VIEW_MODE, "pip");
+  else if (act === "toggle-motion-hud") {
+    const mHud = document.getElementById("motion-debug-hud");
+    if (mHud) {
+      mHud.style.display = mHud.style.display === "none" ? "block" : "none";
+    }
+  }
   else if (act === "toggle-chat") window.miku.send(Ipc.TOGGLE_CHAT_WINDOW);
   else if (act === "toggle-mute") window.miku.send(Ipc.TOGGLE_MUTE);
   else if (act === "open-settings") window.miku.send(Ipc.OPEN_SETTINGS);
@@ -435,7 +447,7 @@ window.addEventListener("pointermove", (ev) => {
   lastMouseY = ev.clientY;
 
   if (isDragging) {
-    if (Math.hypot(ev.screenX - dragStartX, ev.screenY - dragStartY) > 4) {
+    if (!hasDragged && Math.hypot(ev.screenX - dragStartX, ev.screenY - dragStartY) > 4) {
       hasDragged = true;
     }
     const dx = Math.round(ev.screenX - lastScreenX);
@@ -443,10 +455,7 @@ window.addEventListener("pointermove", (ev) => {
     lastScreenX = ev.screenX;
     lastScreenY = ev.screenY;
 
-    // Fixed drag plane update: preserves depth Z strictly invariant
-    stage.updateDragPlane(ev.clientX, ev.clientY, false);
-
-    if (dx !== 0 || dy !== 0) {
+    if (hasDragged && (dx !== 0 || dy !== 0)) {
       window.miku.send(Ipc.WINDOW_DRAG, { dx, dy });
     }
 
@@ -495,8 +504,6 @@ window.addEventListener("pointerdown", (ev) => {
     lastScreenX = ev.screenX;
     lastScreenY = ev.screenY;
 
-    // Establish fixed drag plane on model hit
-    stage.startDragPlane(ev.clientX, ev.clientY);
     const diag = stage.getDragDiagnostics();
     console.log(`[DRAG START] pos:(${diag.vrmPosition?.x},${diag.vrmPosition?.y},${diag.vrmPosition?.z}) scale:(${diag.vrmScale?.x},${diag.vrmScale?.y},${diag.vrmScale?.z}) camDist:${diag.cameraDistance} fov:${diag.cameraFov} bounds:${diag.viewport?.innerWidth}x${diag.viewport?.innerHeight}`);
   }
@@ -505,9 +512,14 @@ window.addEventListener("pointerdown", (ev) => {
 window.addEventListener("pointerup", () => {
   if (isDragging) {
     isDragging = false;
-    stage.endDragPlane();
     const diag = stage.getDragDiagnostics();
     console.log(`[DRAG END] pos:(${diag.vrmPosition?.x},${diag.vrmPosition?.y},${diag.vrmPosition?.z}) scale:(${diag.vrmScale?.x},${diag.vrmScale?.y},${diag.vrmScale?.z}) camDist:${diag.cameraDistance} fov:${diag.cameraFov} bounds:${diag.viewport?.innerWidth}x${diag.viewport?.innerHeight}`);
+  }
+});
+
+window.addEventListener("pointercancel", () => {
+  if (isDragging) {
+    isDragging = false;
   }
 });
 

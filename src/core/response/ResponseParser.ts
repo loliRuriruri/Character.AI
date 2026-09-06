@@ -1,4 +1,5 @@
 import type { ParsedAssistantResponse } from "../character/types";
+import { stripChineseHallucinations } from "./TtsSanitizer";
 
 // Matches [[emotion:happy]], [emotion: happy], etc.
 const EMOTION_TAG_REGEX = /(?:\*\*|\*|[`\[]*)?\[\[?\s*(?:emotion\s*:\s*)?([a-zA-Z가-힣_]+)\s*\]\]?(?:\*\*|\*|[`\]]*)?/gi;
@@ -8,6 +9,9 @@ export const ACTION_KEYWORD_REGEX = /(?:끄덕|흔들|웃|미소\s*짓|미소\s*
 
 // Pure emphasis words and common homonym nouns that should NOT be treated as actions even if enclosed in *...*
 export const NON_ACTION_EMPHASIS_REGEX = /^(?:절대로|정말(?:로)?|진짜(?:로)?|반드시|꼭|너무|매우|약속|주의|중요|참고|확인|경고|오타|수정|손해|손실|손자|손녀|손님|손목시계|손수건|손재주|빈손|눈금|함박눈|첫눈|눈사람|폭설|눈싸움|걸그룹)$/;
+
+// Quiz questions, multiple-choice options, or instructional meta tags
+export const QUIZ_OR_INSTRUCTION_REGEX = /(?:[①②③④⑤]|\bQ\s*\d|\b[1-4]\s*번\b|\b[1-4][\.\)]|\b[A-Da-d][\.\)]|어떤\s*조사|올바른\s*것|알맞은\s*것|무슨\s*뜻|골라|맞춰|선택해|정답|문항)/i;
 
 export function isLikelyActionProse(text: string): boolean {
   const trimmed = text.trim();
@@ -21,6 +25,10 @@ export function isLikelyActionProse(text: string): boolean {
   if (NON_ACTION_EMPHASIS_REGEX.test(trimmed)) return false;
   // Arrow corrections like "어제 -> 그저께"
   if (/->|=>|→/.test(trimmed)) return false;
+  // Quiz questions, options, or instructional dialogue must never be classified as action cues
+  if (QUIZ_OR_INSTRUCTION_REGEX.test(trimmed)) return false;
+  // Dialogue enclosed in quotes (e.g. *"저는 학생입니다"*)
+  if (/^[“"'][\s\S]+["”']$/.test(trimmed)) return false;
 
   // 1. In character dialogue, any multi-word sentence/phrase (containing spaces) with Korean or CJK text
   // inside *...* represents stage directions, actions, or thoughts (e.g. "*가느다란 미소와 함께 눈이 반짝거린다.*")
@@ -68,8 +76,11 @@ export class ResponseParser {
     // 0. 생각 태그 (<think>...</think>, <thought>...</thought>) 완전 제거
     const cleanNoThink = raw.replace(/<(?:think|thought)>[\s\S]*?(?:<\/(?:think|thought)>|$)/gi, "").trim();
 
+    // 0.1 중국어 모델(Qwen 등)의 중국어 환각 문장 선제적 제거
+    const cleanNoChinese = stripChineseHallucinations(cleanNoThink);
+
     // 1. 감정 태그 제거한 displayProse
-    const displayProse = cleanNoThink.replace(EMOTION_TAG_REGEX, "").trim();
+    const displayProse = cleanNoChinese.replace(EMOTION_TAG_REGEX, "").trim();
 
     // 2. 보호 패스: 코드블록, 인라인코드, 마크다운 볼드, 수식, 와일드카드, 이모티콘 등
     const protections: string[] = [];
@@ -79,7 +90,7 @@ export class ResponseParser {
       return placeholder;
     };
 
-    let text = cleanNoThink.replace(EMOTION_TAG_REGEX, " ");
+    let text = cleanNoChinese.replace(EMOTION_TAG_REGEX, " ");
 
     // 2.1 코드 블록 (``` ... ```)
     text = text.replace(/```[\s\S]*?```/g, (m) => protect(m));
@@ -116,7 +127,7 @@ export class ResponseParser {
     text = text.replace(/\*([^*\n]+)\*/g, (_match, p1) => {
       const trimmed = p1.trim();
       const isAction = options?.mode === "rp"
-        ? (!NON_ACTION_EMPHASIS_REGEX.test(trimmed) && !/^[\d\s+\-*/=.,<>]+$/.test(trimmed) && trimmed.length >= 2)
+        ? (!NON_ACTION_EMPHASIS_REGEX.test(trimmed) && !QUIZ_OR_INSTRUCTION_REGEX.test(trimmed) && !/^[“"'][\s\S]+["”']$/.test(trimmed) && !/^[\d\s+\-*/=.,<>]+$/.test(trimmed) && trimmed.length >= 2)
         : isLikelyActionProse(trimmed);
 
       if (isAction) {

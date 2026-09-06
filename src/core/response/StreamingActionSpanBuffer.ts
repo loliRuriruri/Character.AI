@@ -1,4 +1,4 @@
-import { isLikelyActionProse, NON_ACTION_EMPHASIS_REGEX } from "./ResponseParser";
+import { isLikelyActionProse, NON_ACTION_EMPHASIS_REGEX, QUIZ_OR_INSTRUCTION_REGEX } from "./ResponseParser";
 
 export interface ActionSpanBufferOptions {
   mode?: "rp" | "chat" | "tutor" | "free";
@@ -188,9 +188,12 @@ export class StreamingActionSpanBuffer {
     if (/^[a-zA-Z_]\w*$/.test(text)) return false;
     // Homonym non-action blacklist
     if (NON_ACTION_EMPHASIS_REGEX.test(text)) return false;
+    // Quiz questions, options, or instructional meta tags
+    if (QUIZ_OR_INSTRUCTION_REGEX.test(text)) return false;
+    if (/^[“"'][\s\S]+["”']$/.test(text)) return false;
 
     if (this.mode === "rp") {
-      // In RP mode, any valid prose inside *...* (excluding code/math/homonyms) is a stage direction
+      // In RP mode, any valid prose inside *...* (excluding code/math/homonyms/quizzes) is a stage direction
       return true;
     } else {
       // In Chat / Tutor mode, must be likely action prose
@@ -202,9 +205,10 @@ export class StreamingActionSpanBuffer {
    * Called when the LLM response stream completes.
    * Flushes any unclosed spans safely so no trailing speech is dropped.
    */
-  flush(): { remainingActions: string[]; remainingSpeech: string } {
+  flush(): { remainingActions: string[]; remainingSpeech: string; remainingDisplay: string } {
     const remainingActions: string[] = [];
     let remainingSpeech = "";
+    let remainingDisplay = "";
 
     if (this.inThink) {
       this.inThink = false;
@@ -215,8 +219,11 @@ export class StreamingActionSpanBuffer {
       const candidate = this.actionBuffer.trim();
       if (this.isActionSpan(candidate)) {
         remainingActions.push(candidate);
+        remainingDisplay += `*${candidate}*`;
       } else {
-        remainingSpeech += (this.actionBuffer ? `*${this.actionBuffer}` : "*");
+        const fallback = this.actionBuffer ? `*${this.actionBuffer}` : "*";
+        remainingSpeech += fallback;
+        remainingDisplay += fallback;
       }
       this.inAction = false;
       this.actionBuffer = "";
@@ -224,10 +231,11 @@ export class StreamingActionSpanBuffer {
 
     if (this.buffer) {
       remainingSpeech += this.buffer;
+      remainingDisplay += this.buffer;
       this.buffer = "";
     }
 
-    return { remainingActions, remainingSpeech };
+    return { remainingActions, remainingSpeech, remainingDisplay };
   }
 
   reset(): void {

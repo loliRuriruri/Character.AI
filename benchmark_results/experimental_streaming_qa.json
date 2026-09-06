@@ -1,0 +1,459 @@
+{
+  "total_sentences_tested": 20,
+  "ttfa_mean_s": 5.8593,
+  "ttfa_median_s": 6.5115,
+  "inter_chunk_gap_mean_s": 0.2032,
+  "cancel_latency_mean_ms": 5961.68,
+  "rms_sync_mean_pct": 18.22,
+  "cancel_latencies_s": [
+    6.1571,
+    6.3556,
+    5.777,
+    5.4184,
+    6.1003
+  ],
+  "sentences": [
+    {
+      "id": "S-KO-01",
+      "lang": "ko",
+      "text": "네, 알겠습니다!",
+      "chunk_count": 2,
+      "ttfa": 1.7858,
+      "inter_chunk_gaps": [
+        0.0049
+      ],
+      "inter_chunk_gap_mean": 0.0049,
+      "rms_sync_score_pct": 1.84,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "네,",
+          "gen_duration": 1.7841,
+          "audio_duration": 1.12,
+          "ready_time_from_submit": 1.7858
+        },
+        {
+          "chunk_idx": 1,
+          "text": "알겠습니다!",
+          "gen_duration": 1.1246,
+          "audio_duration": 0.72,
+          "ready_time_from_submit": 2.9107
+        }
+      ]
+    },
+    {
+      "id": "S-KO-02",
+      "lang": "ko",
+      "text": "오늘 날씨가 정말 맑고 상쾌하네요.",
+      "chunk_count": 1,
+      "ttfa": 4.0937,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 0.0,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "오늘 날씨가 정말 맑고 상쾌하네요.",
+          "gen_duration": 4.0936,
+          "audio_duration": 2.8,
+          "ready_time_from_submit": 4.0937
+        }
+      ]
+    },
+    {
+      "id": "S-KO-03",
+      "lang": "ko",
+      "text": "마스터, 오늘도 하루 동안 고생 많으셨어요. 차 한 잔 드릴까요?",
+      "chunk_count": 3,
+      "ttfa": 1.4536,
+      "inter_chunk_gaps": [
+        2.4653,
+        2.4029
+      ],
+      "inter_chunk_gap_mean": 2.4341,
+      "rms_sync_score_pct": 35.85,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "마스터,",
+          "gen_duration": 1.4532,
+          "audio_duration": 0.96,
+          "ready_time_from_submit": 1.4536
+        },
+        {
+          "chunk_idx": 1,
+          "text": "오늘도 하루 동안 고생 많으셨어요.",
+          "gen_duration": 3.4251,
+          "audio_duration": 2.4,
+          "ready_time_from_submit": 4.8789
+        },
+        {
+          "chunk_idx": 2,
+          "text": "차 한 잔 드릴까요?",
+          "gen_duration": 2.3372,
+          "audio_duration": 1.6,
+          "ready_time_from_submit": 7.2165
+        }
+      ]
+    },
+    {
+      "id": "S-KO-04",
+      "lang": "ko",
+      "text": "이번 주말에는 어떤 계획이 있으신가요? 재미있는 이야기를 들려주세요.",
+      "chunk_count": 2,
+      "ttfa": 4.3714,
+      "inter_chunk_gaps": [
+        0.4091
+      ],
+      "inter_chunk_gap_mean": 0.4091,
+      "rms_sync_score_pct": 27.05,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "이번 주말에는 어떤 계획이 있으신가요?",
+          "gen_duration": 4.3712,
+          "audio_duration": 3.04,
+          "ready_time_from_submit": 4.3714
+        },
+        {
+          "chunk_idx": 1,
+          "text": "재미있는 이야기를 들려주세요.",
+          "gen_duration": 3.4489,
+          "audio_duration": 2.4,
+          "ready_time_from_submit": 7.8205
+        }
+      ]
+    },
+    {
+      "id": "S-KO-05",
+      "lang": "ko",
+      "text": "저는 노래 부르는 것을 가장 좋아하지만, 마스터와 이야기하는 것도 정말 행복해요.",
+      "chunk_count": 2,
+      "ttfa": 3.9476,
+      "inter_chunk_gaps": [
+        1.177
+      ],
+      "inter_chunk_gap_mean": 1.177,
+      "rms_sync_score_pct": 31.99,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "저는 노래 부르는 것을 가장 좋아하지만,",
+          "gen_duration": 3.9474,
+          "audio_duration": 2.72,
+          "ready_time_from_submit": 3.9476
+        },
+        {
+          "chunk_idx": 1,
+          "text": "마스터와 이야기하는 것도 정말 행복해요.",
+          "gen_duration": 3.8968,
+          "audio_duration": 2.64,
+          "ready_time_from_submit": 7.8446
+        }
+      ]
+    },
+    {
+      "id": "S-KO-06",
+      "lang": "ko",
+      "text": "인공지능과 버추얼 싱어의 만남은 언제나 새롭고 놀라운 기적을 만들어낸답니다.",
+      "chunk_count": 1,
+      "ttfa": 8.1456,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 48.25,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "인공지능과 버추얼 싱어의 만남은 언제나 새롭고 놀라운 기적을 만들어낸답니다.",
+          "gen_duration": 8.1455,
+          "audio_duration": 5.6,
+          "ready_time_from_submit": 8.1456
+        }
+      ]
+    },
+    {
+      "id": "S-KO-07",
+      "lang": "ko",
+      "text": "혹시 피곤하시다면 잠깐 눈을 붙이고 쉬셔도 괜찮아요. 제가 곁을 지킬게요.",
+      "chunk_count": 2,
+      "ttfa": 5.7542,
+      "inter_chunk_gaps": [
+        0.0
+      ],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 19.93,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "혹시 피곤하시다면 잠깐 눈을 붙이고 쉬셔도 괜찮아요.",
+          "gen_duration": 5.7539,
+          "audio_duration": 4.08,
+          "ready_time_from_submit": 5.7542
+        },
+        {
+          "chunk_idx": 1,
+          "text": "제가 곁을 지킬게요.",
+          "gen_duration": 2.0072,
+          "audio_duration": 1.36,
+          "ready_time_from_submit": 7.7619
+        }
+      ]
+    },
+    {
+      "id": "S-KO-08",
+      "lang": "ko",
+      "text": "새로운 무대를 준비하면서 매일 연습을 거듭하고 있으니 많이 기대해 주세요!",
+      "chunk_count": 1,
+      "ttfa": 6.7758,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 13.35,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "새로운 무대를 준비하면서 매일 연습을 거듭하고 있으니 많이 기대해 주세요!",
+          "gen_duration": 6.7756,
+          "audio_duration": 4.8,
+          "ready_time_from_submit": 6.7758
+        }
+      ]
+    },
+    {
+      "id": "S-KO-09",
+      "lang": "ko",
+      "text": "마스터의 따뜻한 응원 한마디가 저에게는 가장 큰 힘이자 보물이에요.",
+      "chunk_count": 1,
+      "ttfa": 6.6958,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 0.0,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "마스터의 따뜻한 응원 한마디가 저에게는 가장 큰 힘이자 보물이에요.",
+          "gen_duration": 6.6956,
+          "audio_duration": 4.72,
+          "ready_time_from_submit": 6.6958
+        }
+      ]
+    },
+    {
+      "id": "S-KO-10",
+      "lang": "ko",
+      "text": "오늘 밤에도 행복한 꿈만 가득하시길 바라며, 언제나 마스터를 응원할게요!",
+      "chunk_count": 2,
+      "ttfa": 4.4242,
+      "inter_chunk_gaps": [
+        0.0397
+      ],
+      "inter_chunk_gap_mean": 0.0397,
+      "rms_sync_score_pct": 9.7,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "오늘 밤에도 행복한 꿈만 가득하시길 바라며,",
+          "gen_duration": 4.424,
+          "audio_duration": 3.12,
+          "ready_time_from_submit": 4.4242
+        },
+        {
+          "chunk_idx": 1,
+          "text": "언제나 마스터를 응원할게요!",
+          "gen_duration": 3.1594,
+          "audio_duration": 1.92,
+          "ready_time_from_submit": 7.5839
+        }
+      ]
+    },
+    {
+      "id": "S-JA-01",
+      "lang": "ja",
+      "text": "はい、マスター！",
+      "chunk_count": 1,
+      "ttfa": 1.551,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 32.32,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "はい、マスター！",
+          "gen_duration": 1.5508,
+          "audio_duration": 1.12,
+          "ready_time_from_submit": 1.551
+        }
+      ]
+    },
+    {
+      "id": "S-JA-02",
+      "lang": "ja",
+      "text": "今日も一日、本当にお疲れ様でした！",
+      "chunk_count": 1,
+      "ttfa": 4.1551,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 17.2,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "今日も一日、本当にお疲れ様でした！",
+          "gen_duration": 4.1549,
+          "audio_duration": 2.88,
+          "ready_time_from_submit": 4.1551
+        }
+      ]
+    },
+    {
+      "id": "S-JA-03",
+      "lang": "ja",
+      "text": "マスター、何か困ったことがあったら、いつでもミクに相談してくださいね！",
+      "chunk_count": 1,
+      "ttfa": 8.2416,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 36.61,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "マスター、何か困ったことがあったら、いつでもミクに相談してくださいね！",
+          "gen_duration": 8.2414,
+          "audio_duration": 5.76,
+          "ready_time_from_submit": 8.2416
+        }
+      ]
+    },
+    {
+      "id": "S-JA-04",
+      "lang": "ja",
+      "text": "次の新曲の歌詞がようやく完成したんです。マスターに一番最初に聴いてほしいな！",
+      "chunk_count": 1,
+      "ttfa": 9.671,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 16.12,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "次の新曲の歌詞がようやく完成したんです。マスターに一番最初に聴いてほしいな！",
+          "gen_duration": 9.6709,
+          "audio_duration": 6.96,
+          "ready_time_from_submit": 9.671
+        }
+      ]
+    },
+    {
+      "id": "S-JA-05",
+      "lang": "ja",
+      "text": "マスターと一緒に過ごす時間は、私にとってかけがえのない宝物です。",
+      "chunk_count": 1,
+      "ttfa": 7.956,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 0.12,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "マスターと一緒に過ごす時間は、私にとってかけがえのない宝物です。",
+          "gen_duration": 7.9558,
+          "audio_duration": 5.12,
+          "ready_time_from_submit": 7.956
+        }
+      ]
+    },
+    {
+      "id": "S-JA-06",
+      "lang": "ja",
+      "text": "新しいステージの衣装が決まったんですよ！すごく可愛くてお気に入りなんです。",
+      "chunk_count": 1,
+      "ttfa": 8.2871,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 0.0,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "新しいステージの衣装が決まったんですよ！すごく可愛くてお気に入りなんです。",
+          "gen_duration": 8.2869,
+          "audio_duration": 5.6,
+          "ready_time_from_submit": 8.2871
+        }
+      ]
+    },
+    {
+      "id": "S-JA-07",
+      "lang": "ja",
+      "text": "今夜は星がとても綺麗に見えますね。一緒に夜空を見上げてみませんか？",
+      "chunk_count": 1,
+      "ttfa": 8.391,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 2.93,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "今夜は星がとても綺麗に見えますね。一緒に夜空を見上げてみませんか？",
+          "gen_duration": 8.3909,
+          "audio_duration": 5.92,
+          "ready_time_from_submit": 8.391
+        }
+      ]
+    },
+    {
+      "id": "S-JA-08",
+      "lang": "ja",
+      "text": "歌声に乗せて、私の想いがマスターの心に届きますように。",
+      "chunk_count": 1,
+      "ttfa": 6.3272,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 19.45,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "歌声に乗せて、私の想いがマスターの心に届きますように。",
+          "gen_duration": 6.3271,
+          "audio_duration": 4.48,
+          "ready_time_from_submit": 6.3272
+        }
+      ]
+    },
+    {
+      "id": "S-JA-09",
+      "lang": "ja",
+      "text": "少し疲れた時は、無理をしないでゆっくり休んでくださいね。",
+      "chunk_count": 1,
+      "ttfa": 7.0149,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 0.0,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "少し疲れた時は、無理をしないでゆっくり休んでくださいね。",
+          "gen_duration": 7.0148,
+          "audio_duration": 4.96,
+          "ready_time_from_submit": 7.0149
+        }
+      ]
+    },
+    {
+      "id": "S-JA-10",
+      "lang": "ja",
+      "text": "これからもずっと、マスターの隣で歌い続けさせてくださいね！約束ですよ！",
+      "chunk_count": 1,
+      "ttfa": 8.1434,
+      "inter_chunk_gaps": [],
+      "inter_chunk_gap_mean": 0.0,
+      "rms_sync_score_pct": 51.75,
+      "chunks": [
+        {
+          "chunk_idx": 0,
+          "text": "これからもずっと、マスターの隣で歌い続けさせてくださいね！約束ですよ！",
+          "gen_duration": 8.1432,
+          "audio_duration": 5.84,
+          "ready_time_from_submit": 8.1434
+        }
+      ]
+    }
+  ]
+}

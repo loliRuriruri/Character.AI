@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { ResponseParser } from "../src/core/response/ResponseParser";
-import { sanitizeSpeechForTts } from "../src/core/response/TtsSanitizer";
+import { sanitizeSpeechForTts, stripChineseHallucinations, isChineseHallucination } from "../src/core/response/TtsSanitizer";
 
 export function testResponseParser() {
   console.log("-> Running tests/response-parser.test.ts");
@@ -209,6 +209,75 @@ export function testResponseParser() {
     assert(!parsed.speechText.includes("Thinking in Chinese"));
     assert.deepStrictEqual(parsed.actionCues, ["밝게 웃으며"]);
     assert.strictEqual(parsed.speechText, "안녕하세요! 오늘 하루 즐겁게 보내셨나요?");
+  }
+
+  // 13. Quiz questions and choices inside asterisks must NOT be classified as action cues, and must be spoken by TTS
+  {
+    const quizRaw = '* "私はコーヒーを飲みました"에서 "を"는 어떤 조사? ① 도구/수단 ② 목적어(을/를) ③ 출발점 ④ 장소 *';
+    const parsedTutor = ResponseParser.parse(quizRaw, { mode: "tutor" });
+    assert.deepStrictEqual(parsedTutor.actionCues, [], "Quiz question should not be classified as action cue");
+    assert(parsedTutor.speechText.includes("私はコーヒーを飲みました"));
+    assert(parsedTutor.speechText.includes("어떤 조사"));
+    const cleanSpeech = sanitizeSpeechForTts(parsedTutor.speechText);
+    assert(cleanSpeech.includes("어떤 조사"));
+
+    const quizRp = ResponseParser.parse(quizRaw, { mode: "rp" });
+    assert.deepStrictEqual(quizRp.actionCues, [], "Quiz should not be an action cue even in RP mode");
+  }
+
+  // 14. Dividers and punctuation-only strings must return empty string (prevents TTS ghost laugh hallucinations)
+  {
+    assert.strictEqual(sanitizeSpeechForTts("---"), "");
+    assert.strictEqual(sanitizeSpeechForTts("---."), "");
+    assert.strictEqual(sanitizeSpeechForTts("***"), "");
+    assert.strictEqual(sanitizeSpeechForTts("___"), "");
+    assert.strictEqual(sanitizeSpeechForTts("..."), "");
+    assert.strictEqual(sanitizeSpeechForTts("~~~"), "");
+    assert.strictEqual(sanitizeSpeechForTts("   "), "");
+    assert.strictEqual(sanitizeSpeechForTts("--"), "");
+  }
+
+  // 15. Chinese Hallucination Detection & Stripping (e.g. Qwen slipping into Chinese)
+  {
+    const userExample = "*웃으면서 편의점 냉동실을 열어 아이스크림을 꺼내준다.* 여기, 마스터가 좋아할 만한 아이스크림이야~! 어떤 맛이 좋을까? 芒果面包你喜欢吗？";
+    const parsed = ResponseParser.parse(userExample, { mode: "rp" });
+    assert.deepStrictEqual(parsed.actionCues, ["웃으면서 편의점 냉동실을 열어 아이스크림을 꺼내준다."]);
+    assert(!parsed.speechText.includes("芒果"));
+    assert(!parsed.speechText.includes("面包"));
+    assert(!parsed.speechText.includes("你喜欢吗"));
+    assert.strictEqual(parsed.speechText, "여기, 마스터가 좋아할 만한 아이스크림이야~! 어떤 맛이 좋을까?");
+    assert.strictEqual(sanitizeSpeechForTts(parsed.speechText), "여기, 마스터가 좋아할 만한 아이스크림이야~! 어떤 맛이 좋을까?");
+
+    // Pure Chinese hallucination response
+    const pureZh = "好的，这是你要的冰淇淋！你想吃什么？";
+    assert(isChineseHallucination(pureZh));
+    const strippedPureZh = stripChineseHallucinations(pureZh).trim();
+    assert.strictEqual(strippedPureZh, "");
+
+    // Chinese sentence in the middle
+    const midZh = "여기 芒果面包 맛있는 아이스크림이야!";
+    const strippedMidZh = stripChineseHallucinations(midZh);
+    assert(!strippedMidZh.includes("芒果面包"));
+    assert(strippedMidZh.includes("여기"));
+    assert(strippedMidZh.includes("맛있는 아이스크림이야!"));
+  }
+
+  // 16. Legitimate Japanese Kanji and Korean Hangul must NEVER be stripped by Chinese filter
+  {
+    // Japanese with Kanji and Kana
+    const jaText = "初音ミクです。今日もよろしくね！";
+    assert(!isChineseHallucination(jaText));
+    assert.strictEqual(stripChineseHallucinations(jaText).trim(), jaText);
+
+    // Japanese quiz multiple choices with Kanji
+    const quizChoices = "① 友達  ② 家族  ③ 先生  ④ 学校";
+    assert(!isChineseHallucination(quizChoices));
+    assert.strictEqual(stripChineseHallucinations(quizChoices).trim(), quizChoices);
+
+    // Japanese word with parenthetical Hangul reading
+    const jpKo = "リンゴ(사과)를 먹었어";
+    assert(!isChineseHallucination(jpKo));
+    assert.strictEqual(stripChineseHallucinations(jpKo).trim(), jpKo);
   }
 
   console.log("   ✓ ResponseParser tests passed.");

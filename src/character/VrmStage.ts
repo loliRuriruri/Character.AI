@@ -461,26 +461,78 @@ export class VrmStage {
     if (!el) {
       el = document.createElement("div");
       el.id = "motion-debug-hud";
-      el.title = "우클릭하여 상태창 닫기";
+      el.title = "왼클릭 드래그: 위치 이동 / 우클릭: 닫기";
       el.style.position = "fixed";
-      el.style.top = "8px";
+      el.style.top = "10px";
       el.style.left = "50%";
       el.style.transform = "translateX(-50%)";
-      el.style.padding = "4px 8px";
-      el.style.background = "rgba(15, 23, 42, 0.45)"; // 반투명화
-      el.style.border = "1px solid rgba(56, 189, 248, 0.25)";
-      el.style.borderRadius = "5px";
+      el.style.padding = "7px 14px";
+      el.style.background = "rgba(10, 18, 30, 0.88)"; // 가독성 높은 반투명 다크 블루
+      el.style.border = "1px solid rgba(56, 189, 248, 0.45)";
+      el.style.borderRadius = "8px";
       el.style.color = "#f8fafc";
-      el.style.font = "8.5px/1.25 ui-monospace, monospace"; // 50% 컴팩트 크기
+      el.style.font = "11px/1.4 'JetBrains Mono', 'Consolas', ui-monospace, monospace";
       el.style.zIndex = "9999";
-      el.style.pointerEvents = "auto"; // 클릭/우클릭 허용
-      el.style.cursor = "pointer";
-      el.style.backdropFilter = "blur(8px)";
-      el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+      el.style.pointerEvents = "auto";
+      el.style.cursor = "grab";
+      el.style.backdropFilter = "blur(12px)";
+      el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.6), 0 0 12px rgba(56,189,248,0.25)";
       el.style.userSelect = "none";
-      el.style.transition = "opacity 0.2s ease";
+      el.style.minWidth = "320px";
+      el.style.maxWidth = "420px";
 
       const hud = el;
+      let isHudDragging = false;
+      let hudDragStartX = 0;
+      let hudDragStartY = 0;
+      let hudInitLeft = 0;
+      let hudInitTop = 0;
+
+      hud.addEventListener("pointerdown", (e) => {
+        if (e.button === 0) {
+          isHudDragging = true;
+          e.stopPropagation();
+          e.preventDefault();
+          const rect = hud.getBoundingClientRect();
+          hudInitLeft = rect.left;
+          hudInitTop = rect.top;
+          hudDragStartX = e.clientX;
+          hudDragStartY = e.clientY;
+          hud.style.transform = "none"; // Clear translateX(-50%) once dragged
+          hud.style.left = `${hudInitLeft}px`;
+          hud.style.top = `${hudInitTop}px`;
+          hud.style.cursor = "grabbing";
+          try { hud.setPointerCapture(e.pointerId); } catch {}
+        }
+      });
+
+      hud.addEventListener("pointermove", (e) => {
+        if (isHudDragging) {
+          e.stopPropagation();
+          e.preventDefault();
+          const dx = e.clientX - hudDragStartX;
+          const dy = e.clientY - hudDragStartY;
+          const maxLeft = Math.max(10, window.innerWidth - 60);
+          const maxTop = Math.max(10, window.innerHeight - 30);
+          const nextLeft = Math.max(0, Math.min(maxLeft, hudInitLeft + dx));
+          const nextTop = Math.max(0, Math.min(maxTop, hudInitTop + dy));
+          hud.style.left = `${nextLeft}px`;
+          hud.style.top = `${nextTop}px`;
+        }
+      });
+
+      const endHudDrag = (e: PointerEvent) => {
+        if (isHudDragging) {
+          isHudDragging = false;
+          hud.style.cursor = "grab";
+          try { hud.releasePointerCapture(e.pointerId); } catch {}
+          e.stopPropagation();
+        }
+      };
+
+      hud.addEventListener("pointerup", endHudDrag);
+      hud.addEventListener("pointercancel", endHudDrag);
+
       hud.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -495,37 +547,86 @@ export class VrmStage {
   private updateDebugHUD(dt: number): void {
     if (!this.debugHudEl || !MOTION_CONFIG.DEBUG_HUD_ENABLED) return;
     this.hudFrameThrottle++;
-    if (this.hudFrameThrottle % 4 !== 0) return; // Update every 4 frames
+    if (this.hudFrameThrottle % 3 !== 0) return; // Update every 3 frames for ultra-responsive feedback
 
     const status = this.motion?.getDebugStatus();
     const em = this.vrm?.expressionManager;
+    const isSpeaking = this.lipSync?.isSpeaking ?? this.viseme?.isActive ?? false;
 
-    let topExpressions: string[] = [];
+    let activeExpressions: string[] = [];
     if (em && em.expressionMap) {
       const activeList: { name: string; weight: number }[] = [];
       for (const name of Object.keys(em.expressionMap)) {
         const w = em.getValue(name) ?? 0;
-        if (w > 0.001) {
+        if (w > 0.005) {
           activeList.push({ name, weight: w });
         }
       }
       activeList.sort((a, b) => b.weight - a.weight);
-      topExpressions = activeList.slice(0, 4).map((x) => `${x.name}:${x.weight.toFixed(2)}`);
+      activeExpressions = activeList.slice(0, 5).map((x) => 
+        `<span style="background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.28); border-radius:3px; padding:1px 5px; color:#e2e8f0; font-size:10px;">${x.name}:<b style="color:#38bdf8;">${x.weight.toFixed(2)}</b></span>`
+      );
     }
 
-    const convStateStr = status?.convState ?? (status?.isSpeaking ? "speaking" : "idle");
+    const convStateStr = status?.convState ?? (isSpeaking ? "speaking" : "idle");
     const clipStr = status?.gesture ?? "none";
     const cdStr = status?.cooldown ?? "0.0s";
+    const fps = dt > 0 ? Math.min(999, Math.round(1 / dt)) : 60;
     const dtMs = (dt * 1000).toFixed(1);
 
+    const emotionColorMap: Record<EmotionName, string> = {
+      neutral: "#94a3b8",
+      happy: "#facc15",
+      relaxed: "#34d399",
+      angry: "#f87171",
+      sad: "#60a5fa",
+      surprised: "#f472b6",
+    };
+    const emotionColor = emotionColorMap[this.currentEmotion] || "#38bdf8";
+
+    const stateColor = (status?.isSpeaking || isSpeaking)
+      ? "#f43f5e"
+      : convStateStr === "afterglow"
+      ? "#f59e0b"
+      : convStateStr === "thinking"
+      ? "#c084fc"
+      : "#4ade80";
+
     this.debugHudEl.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px;">
-        <span style="font-weight: bold; color: #38bdf8; font-size: 8px;">MOTION V2 HUD (Active)</span>
-        <span style="font-size: 7px; color: #64748b;">(우클릭 닫기)</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; border-bottom:1px solid rgba(56,189,248,0.22); padding-bottom:3px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-weight:800; color:#38bdf8; font-size:11.5px; letter-spacing:0.02em;">⚡ MOTION & AVATAR HUD</span>
+          <span style="font-size:9px; font-weight:700; background:rgba(56,189,248,0.2); color:#7dd3fc; border-radius:3px; padding:1px 4px;">V2</span>
+        </div>
+        <div style="font-size:9.5px; color:#94a3b8;">
+          <span style="color:#facc15;">#${this.vrmUpdateCounter}</span> | <span>${fps}fps (${dtMs}ms)</span>
+          <span style="color:#64748b; margin-left:4px;">(우클릭 닫기)</span>
+        </div>
       </div>
-      <div><span style="color:#4ade80; font-weight:bold;">${convStateStr}</span> | <span style="color:#38bdf8;">${clipStr}</span> | CD:<span>${cdStr}</span> | <span>${dtMs}ms</span> | <span style="color:#facc15;">#${this.vrmUpdateCounter}</span></div>
-      <div style="font-size: 7.5px; color: #94a3b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">
-        ${topExpressions.length > 0 ? topExpressions.join(", ") : "expr: none"}
+
+      <!-- Line 1: Motion / Action State -->
+      <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; margin-bottom:3px; flex-wrap:nowrap; overflow:hidden;">
+        <span style="color:#94a3b8; font-size:10px;">동작:</span>
+        <span style="color:${stateColor}; font-weight:800; background:rgba(0,0,0,0.35); padding:1px 5px; border-radius:3px; border:1px solid ${stateColor}40;">${(status?.isSpeaking || isSpeaking) ? "🔊 SPEAKING" : convStateStr.toUpperCase()}</span>
+        <span style="color:#38bdf8; font-weight:700;">${clipStr}</span>
+        <span style="color:#cbd5e1; font-size:10px;">(${status?.time ?? "0.0s"})</span>
+        <span style="color:#64748b;">|</span>
+        <span style="color:#94a3b8; font-size:10px;">W:<b style="color:#e2e8f0;">${status?.gestureWeight ?? "0.00"}</b></span>
+        <span style="color:#94a3b8; font-size:10px;">CD:<b style="color:#e2e8f0;">${cdStr}</b></span>
+      </div>
+
+      <!-- Line 2: Face Emotion & LipSync -->
+      <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; margin-bottom:4px; flex-wrap:nowrap; overflow:hidden;">
+        <span style="color:#94a3b8; font-size:10px;">표정:</span>
+        <span style="color:${emotionColor}; font-weight:800; background:rgba(0,0,0,0.35); padding:1px 5px; border-radius:3px; border:1px solid ${emotionColor}40;">${this.currentEmotion.toUpperCase()}</span>
+        <span style="color:#e2e8f0; font-size:10px; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px;">${isSpeaking ? "👄 발화중 (상한 0.20)" : "대기 (상한 0.45)"}</span>
+        <span style="color:#64748b; font-size:9.5px;">[涙/涙輪:0.00]</span>
+      </div>
+
+      <!-- Line 3: Active Morph Blendshapes -->
+      <div style="display:flex; align-items:center; gap:4px; font-size:10px; color:#94a3b8; overflow-x:auto; white-space:nowrap; scrollbar-width:none;">
+        <span style="color:#64748b; font-size:9.5px; flex-shrink:0;">모프:</span>
+        ${activeExpressions.length > 0 ? activeExpressions.join(" ") : '<span style="color:#64748b;">(기본 neutral)</span>'}
       </div>
     `.trim();
   }

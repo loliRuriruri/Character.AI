@@ -111,6 +111,7 @@ root.innerHTML = `
       <label>TTS 제공자
         <select id="ttsProvider">
           <option value="fish">🐟 Fish Audio S2.1-Pro Free (100% 무료 클라우드 / 리얼 감정·웃음)</option>
+          <option value="qwen3tts">🤖 Qwen3-TTS 1.7B (Alibaba 공식 로컬 멀티링구얼 보이스 클론)</option>
           <option value="voxcpm">VoxCPM2 (RTX 5090 애니메이션 클론 보이스)</option>
           <option value="irodori">Irodori-TTS (일본어 원어민 억양 LoRA)</option>
           <option value="web">Web Speech (시스템 기본 음성)</option>
@@ -290,6 +291,7 @@ root.innerHTML = `
             <label style="font-size:10.5px; flex:1;">통합 선호 음성 엔진
               <select id="profileUnifiedEngine" style="width:100%; font-size:11px; padding:4px 6px; margin-top:2px;">
                 <option value="fish">🐟 Fish Audio S2.1 Pro (100% 무료 클라우드 / 리얼 감정·웃음)</option>
+                <option value="qwen3tts">🤖 Qwen3-TTS 1.7B (Alibaba 공식 로컬 멀티링구얼 클론)</option>
                 <option value="voxcpm">🎙️ VoxCPM2 (RTX 5090 로컬 애니메이션 제로샷 클론)</option>
                 <option value="irodori">🌸 Irodori-TTS (원어민 억양 LoRA)</option>
                 <option value="web">🌐 Web Speech (기본 시스템 음성)</option>
@@ -358,6 +360,31 @@ root.innerHTML = `
           </div>
 
           <div id="studio-status" style="display:none; padding:6px 10px; border-radius:6px; font-size:10.5px; text-align:center;"></div>
+        </div>
+      </div>
+
+      <!-- Qwen3-TTS Card -->
+      <div id="qwen3-card" style="display:none; margin-top:10px; padding:12px; background:rgba(123,104,238,0.08); border:1px solid rgba(123,104,238,0.4); border-radius:10px;">
+        <div style="font-size:12.5px; font-weight:800; color:#a29bfe; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span>🤖 Qwen3-TTS 1.7B-Base (로컬 클론 엔진)</span>
+            <span style="font-size:9.5px; background:rgba(123,104,238,0.25); color:#a29bfe; border:1px solid rgba(123,104,238,0.5); padding:1px 6px; border-radius:4px; font-weight:700;">RTX 5090 bfloat16</span>
+          </div>
+          <span style="font-size:9.5px; color:#64ff96;">● 독립 가상환경</span>
+        </div>
+        <div style="font-size:10.5px; color:#8aa8b0; line-height:1.4; margin-bottom:8px;">
+          * VoxCPM2와 동일한 고품질 음성 샘플(WAV+대본)을 완벽히 공유합니다. 상단 <b>[캐릭터 목소리 선택]</b>에서 원하는 캐릭터(미쿠, 봇치, 아야카 등)를 고르면 <b>별도 학습 없이 제로샷으로 즉시 복제</b>됩니다.
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:10.5px;">Qwen3 Python 실행 경로
+            <input id="qwen3PythonPath" style="font-size:10.5px; padding:4px 8px;" placeholder="C:\\Users\\a4jud\\Qwen3-TTS\\.venv\\Scripts\\python.exe" />
+          </label>
+          <label style="font-size:10.5px;">공유 참조 오디오 경로 (WAV)
+            <input id="qwen3ReferenceWav" style="font-size:10.5px; padding:4px 8px;" placeholder="C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav" />
+          </label>
+          <label style="font-size:10.5px;">공유 참조 대사 (Transcript)
+            <input id="qwen3PromptText" style="font-size:10.5px; padding:4px 8px;" placeholder="참조 오디오의 정확한 대사" />
+          </label>
         </div>
       </div>
     </div>
@@ -501,8 +528,10 @@ function updateKeyHint(): void {
 
 function updateTtsProviderUi(prov: string): void {
   if (fishCard) fishCard.style.display = prov === "fish" ? "block" : "none";
+  const qwenCard = document.getElementById("qwen3-card");
+  if (qwenCard) qwenCard.style.display = prov === "qwen3tts" ? "block" : "none";
   const voxRow = document.getElementById("voxcpm-voice-row");
-  if (voxRow) voxRow.style.display = prov === "fish" ? "none" : "block";
+  if (voxRow) voxRow.style.display = (prov === "fish" || prov === "web" || prov === "irodori") ? "none" : "block";
 }
 
 ttsProvSel.addEventListener("change", () => {
@@ -511,7 +540,7 @@ ttsProvSel.addEventListener("change", () => {
   window.miku.send(Ipc.SETTINGS_UPDATE, { ttsProvider: prov });
   const ref = prov === "fish"
     ? (fishVoiceIdInput?.value.trim() || "")
-    : (voiceSel?.value || "");
+    : (voiceSel?.value || ((document.getElementById("qwen3ReferenceWav") as HTMLInputElement)?.value.trim() || "my_voice_03"));
   syncCurrentProfileVoiceFromExternal(prov as any, ref);
 });
 
@@ -661,6 +690,9 @@ btnOpenFishSite?.addEventListener("click", () => {
     } else if (eng === "voxcpm") {
       profileVoiceTitleDisplay.textContent = `🎙️ VoxCPM (${ref})`;
       profileVoiceTitleDisplay.style.color = "#ff8ba7";
+    } else if (eng === "qwen3tts") {
+      profileVoiceTitleDisplay.textContent = `🤖 Qwen3-TTS (${ref})`;
+      profileVoiceTitleDisplay.style.color = "#a29bfe";
     } else if (eng === "irodori") {
       profileVoiceTitleDisplay.textContent = `🌸 Irodori (${ref})`;
       profileVoiceTitleDisplay.style.color = "#39c5bb";
@@ -695,6 +727,11 @@ btnOpenFishSite?.addEventListener("click", () => {
       p.voxcpm.defaultReferenceWav = voiceId;
       p.voxcpm.koReferenceWav = voiceId;
       p.voxcpm.jaReferenceWav = voiceId;
+    } else if (engine === "qwen3tts") {
+      if (!p.qwen3tts) p.qwen3tts = {};
+      p.qwen3tts.referenceWav = voiceId;
+      p.qwen3tts.koReferenceWav = voiceId;
+      p.qwen3tts.jaReferenceWav = voiceId;
     }
 
     if (profileUnifiedEngine) profileUnifiedEngine.value = engine;
@@ -1369,13 +1406,42 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
   if (fishApiKeyInput) fishApiKeyInput.value = state.settings.fishApiKey || "";
   if (fishVoiceIdInput) fishVoiceIdInput.value = state.settings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
   if (fishLatencySelect) fishLatencySelect.value = state.settings.fishLatency || "low";
+
+  const qwen3PyInput = document.getElementById("qwen3PythonPath") as HTMLInputElement | null;
+  const qwen3RefInput = document.getElementById("qwen3ReferenceWav") as HTMLInputElement | null;
+  const qwen3PromptInput = document.getElementById("qwen3PromptText") as HTMLInputElement | null;
+  if (qwen3PyInput) qwen3PyInput.value = state.settings.qwen3PythonPath || "";
+  if (qwen3RefInput) qwen3RefInput.value = state.settings.qwen3ReferenceWav || "";
+  if (qwen3PromptInput) qwen3PromptInput.value = state.settings.qwen3PromptText || "";
+
   loadFavorites(state.settings.fishFavorites);
   updateTtsProviderUi(state.settings.ttsProvider);
-    updateKeyHint();
+  updateKeyHint();
 
   populateVrmModels(installedVrmList, state.settings.vrmModelPath);
   populateVrmaMotions(installedVrmaList, state.settings.vrmaMotionPath || "/models/idle_loop.vrma");
   populateVoiceProfiles(state.settings.voiceProfiles || [], state.settings.activeVoiceProfileId);
+});
+
+// Qwen3-TTS settings listeners
+const qwen3PyInputEl = document.getElementById("qwen3PythonPath") as HTMLInputElement | null;
+const qwen3RefInputEl = document.getElementById("qwen3ReferenceWav") as HTMLInputElement | null;
+const qwen3PromptInputEl = document.getElementById("qwen3PromptText") as HTMLInputElement | null;
+qwen3PyInputEl?.addEventListener("change", () => {
+  const val = qwen3PyInputEl.value.trim();
+  if (localSettings) localSettings.qwen3PythonPath = val;
+  window.miku.send(Ipc.SETTINGS_UPDATE, { qwen3PythonPath: val });
+});
+qwen3RefInputEl?.addEventListener("change", () => {
+  const val = qwen3RefInputEl.value.trim();
+  if (localSettings) localSettings.qwen3ReferenceWav = val;
+  window.miku.send(Ipc.SETTINGS_UPDATE, { qwen3ReferenceWav: val });
+  syncCurrentProfileVoiceFromExternal("qwen3tts", val);
+});
+qwen3PromptInputEl?.addEventListener("change", () => {
+  const val = qwen3PromptInputEl.value.trim();
+  if (localSettings) localSettings.qwen3PromptText = val;
+  window.miku.send(Ipc.SETTINGS_UPDATE, { qwen3PromptText: val });
 });
 
 const btnPreviewVoice = document.getElementById("btn-preview-voice") as HTMLButtonElement;
@@ -1390,15 +1456,31 @@ btnPreviewVoice.addEventListener("click", () => {
 
 voiceSel.addEventListener("change", () => {
   const chosen = voiceSel.value;
+  if (previewAudio) {
+    previewAudio.pause();
+    previewAudio = null;
+  }
   const vText = document.getElementById("voice-status-text");
   if (vText) {
     vText.innerHTML = `<span style="color:#64ff96;">✅ ${chosen} 보이스 0초 즉시 적용됨</span>`;
   }
   if (chosen) {
-    if (localSettings) localSettings.ttsVoiceId = chosen;
-    window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen, ttsProvider: "voxcpm" });
-    window.miku.send(Ipc.PREVIEW_VOICE, chosen);
-    syncCurrentProfileVoiceFromExternal("voxcpm", chosen);
+    const curProv = (ttsProvSel?.value || localSettings?.ttsProvider || "voxcpm") as any;
+    const targetProv = curProv === "qwen3tts" ? "qwen3tts" : "voxcpm";
+    if (localSettings) {
+      localSettings.ttsVoiceId = chosen;
+      if (targetProv === "qwen3tts") localSettings.qwen3ReferenceWav = chosen;
+    }
+    const qwen3RefInput = document.getElementById("qwen3ReferenceWav") as HTMLInputElement | null;
+    if (qwen3RefInput && targetProv === "qwen3tts") {
+      qwen3RefInput.value = chosen;
+    }
+    window.miku.send(Ipc.SETTINGS_UPDATE, {
+      ttsVoiceId: chosen,
+      qwen3ReferenceWav: targetProv === "qwen3tts" ? chosen : undefined,
+      ttsProvider: targetProv,
+    });
+    syncCurrentProfileVoiceFromExternal(targetProv, chosen);
   }
 });
 
@@ -1647,6 +1729,8 @@ function updateProfileFields(profile: CharacterVoiceProfile) {
       profileUnifiedRef.value = profile.fish?.referenceId || profile.fish?.koReferenceId || profile.fish?.jaReferenceId || localSettings?.fishVoiceId || "";
     } else if (eng === "voxcpm") {
       profileUnifiedRef.value = profile.voxcpm?.defaultReferenceWav || profile.voxcpm?.koReferenceWav || profile.voxcpm?.jaReferenceWav || localSettings?.ttsVoiceId || "";
+    } else if (eng === "qwen3tts") {
+      profileUnifiedRef.value = profile.qwen3tts?.referenceWav || profile.qwen3tts?.koReferenceWav || profile.voxcpm?.defaultReferenceWav || localSettings?.qwen3ReferenceWav || "";
     } else if (eng === "irodori") {
       profileUnifiedRef.value = profile.irodori?.loraId || localSettings?.irodoriLoraId || "Nilou3000";
     } else {
@@ -1677,6 +1761,7 @@ function syncCurrentProfileFromUi() {
 
   if (!p.voxcpm) p.voxcpm = {};
   if (!p.fish) p.fish = {};
+  if (!p.qwen3tts) p.qwen3tts = {};
 
   if (eng === "fish" && ref) {
     p.fish.referenceId = ref;
@@ -1693,6 +1778,13 @@ function syncCurrentProfileFromUi() {
     p.voxcpm.jaReferenceWav = ref;
     localSettings.ttsVoiceId = ref;
     if (voiceSel) voiceSel.value = ref;
+  } else if (eng === "qwen3tts" && ref) {
+    p.qwen3tts.referenceWav = ref;
+    p.qwen3tts.koReferenceWav = ref;
+    p.qwen3tts.jaReferenceWav = ref;
+    localSettings.qwen3ReferenceWav = ref;
+    const qEl = document.getElementById("qwen3ReferenceWav") as HTMLInputElement | null;
+    if (qEl) qEl.value = ref;
   }
 
   // Interlock top provider
@@ -1712,6 +1804,7 @@ function syncCurrentProfileFromUi() {
     ttsProvider: eng,
     fishVoiceId: localSettings.fishVoiceId,
     ttsVoiceId: localSettings.ttsVoiceId,
+    qwen3ReferenceWav: localSettings.qwen3ReferenceWav,
   });
 }
 
@@ -1743,12 +1836,20 @@ activeVoiceProfileSelect?.addEventListener("change", () => {
         localSettings.ttsVoiceId = voxId;
         if (voiceSel) voiceSel.value = voxId;
       }
+    } else if (eng === "qwen3tts") {
+      const qwenRef = p.qwen3tts?.referenceWav || p.qwen3tts?.koReferenceWav || localSettings.qwen3ReferenceWav;
+      if (qwenRef) {
+        localSettings.qwen3ReferenceWav = qwenRef;
+        const qEl = document.getElementById("qwen3ReferenceWav") as HTMLInputElement | null;
+        if (qEl) qEl.value = qwenRef;
+      }
     }
     window.miku.send(Ipc.SETTINGS_UPDATE, {
       activeVoiceProfileId: chosenId,
       ttsProvider: eng,
       fishVoiceId: localSettings.fishVoiceId,
       ttsVoiceId: localSettings.ttsVoiceId,
+      qwen3ReferenceWav: localSettings.qwen3ReferenceWav,
     });
   }
 });
@@ -1760,6 +1861,8 @@ profileUnifiedEngine?.addEventListener("change", () => {
       profileUnifiedRef.value = localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
     } else if (eng === "voxcpm") {
       profileUnifiedRef.value = localSettings.ttsVoiceId || "nilou";
+    } else if (eng === "qwen3tts") {
+      profileUnifiedRef.value = localSettings.qwen3ReferenceWav || "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav";
     } else if (eng === "irodori") {
       profileUnifiedRef.value = localSettings.irodoriLoraId || "Nilou3000";
     } else {

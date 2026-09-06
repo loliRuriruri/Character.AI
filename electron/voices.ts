@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { TtsVoice, VoiceCatalog } from "../src/shared/types";
+import type { TtsVoice, VoiceCatalog, VoiceReferenceAsset } from "../src/shared/types";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -95,12 +95,53 @@ export function applyVoiceSelection(id: string): {
   ttsVoiceId: string;
   voxcpmReferenceWav: string;
   voxcpmPromptText: string;
+  qwen3ReferenceWav: string;
+  qwen3PromptText: string;
 } | null {
   const v = voiceById(id);
   if (!v) return null;
+  const resolved = resolveVoiceWav(v.wav);
+  const prompt = (v.promptText || "").trim();
   return {
     ttsVoiceId: v.id,
-    voxcpmReferenceWav: resolveVoiceWav(v.wav),
-    voxcpmPromptText: (v.promptText || "").trim(),
+    voxcpmReferenceWav: resolved,
+    voxcpmPromptText: prompt,
+    qwen3ReferenceWav: resolved,
+    qwen3PromptText: prompt,
   };
 }
+
+export function toVoiceReferenceAsset(v: TtsVoice): VoiceReferenceAsset {
+  return {
+    id: v.id,
+    displayName: v.displayName,
+    language: "auto",
+    audioPath: resolveVoiceWav(v.wav),
+    transcript: v.promptText,
+    durationSec: v.durationSec,
+    sampleRate: 48000,
+    source: "imported",
+    rightsConfirmed: true,
+  };
+}
+
+export function getVoiceReferenceAsset(idOrPath: string): VoiceReferenceAsset {
+  const v = voiceById(idOrPath);
+  if (v) return toVoiceReferenceAsset(v);
+  const resolved = resolveVoiceWav(idOrPath);
+  let transcript = "";
+  const sidecar = resolved.replace(/\.wav$/i, ".txt");
+  if (fs.existsSync(sidecar)) {
+    try { transcript = fs.readFileSync(sidecar, "utf-8").trim(); } catch {}
+  }
+  return {
+    id: path.basename(resolved, path.extname(resolved)),
+    displayName: path.basename(resolved),
+    language: "auto",
+    audioPath: resolved,
+    transcript,
+    source: "user",
+    rightsConfirmed: true,
+  };
+}
+

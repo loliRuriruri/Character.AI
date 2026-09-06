@@ -76,7 +76,7 @@ async function completeGemini(opts: {
         systemInstruction: systemMsg ? { parts: [{ text: systemMsg }] } : undefined,
         generationConfig: {
           temperature: 0.75,
-          maxOutputTokens: 350,
+          maxOutputTokens: 1024,
         },
       }),
       signal: opts.signal,
@@ -129,7 +129,7 @@ async function completeOllama(opts: {
     messages: formattedMessages,
     stream: true,
     options: {
-      num_predict: opts.imageBase64 ? 350 : 220,
+      num_predict: opts.imageBase64 ? 512 : 768,
       num_ctx: 4096,
       temperature: 0.7,
       top_p: 0.9,
@@ -142,7 +142,7 @@ async function completeOllama(opts: {
     messages: formattedMessages,
     stream: false,
     options: {
-      num_predict: opts.imageBase64 ? 350 : 220,
+      num_predict: opts.imageBase64 ? 512 : 768,
       num_ctx: 4096,
       temperature: 0.7,
       top_p: 0.9,
@@ -204,10 +204,13 @@ async function readOllamaNdjson(res: Response, onDelta: (chunk: string) => void,
       if (signal?.aborted) break;
       const trimmed = line.trim();
       if (!trimmed) continue;
-      let parsed: { message?: { content?: string }; response?: string; done?: boolean };
+      let parsed: { message?: { content?: string }; response?: string; done?: boolean; done_reason?: string; eval_count?: number };
       try { parsed = JSON.parse(trimmed); } catch { continue; }
       const piece = (parsed.message?.content ?? parsed.response ?? "").toString();
       if (piece.length > 0) { acc += piece; onDelta(piece); }
+      if (parsed.done && parsed.done_reason === "length") {
+        console.warn(`[Ollama] Generation hit token limit (eval_count=${parsed.eval_count})!`);
+      }
     }
   }
   return acc;
@@ -224,7 +227,7 @@ async function completeEasyProxy(opts: {
     res = await fetch(opts.easyProxyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: opts.model, messages: opts.messages, stream: true, temperature: 0.8 }),
+      body: JSON.stringify({ model: opts.model, messages: opts.messages, stream: true, temperature: 0.8, max_tokens: 1024 }),
     });
   } catch (err) {
     throw new LlmError("EasyProxy 연결 실패: " + opts.easyProxyUrl + " — " + String(err));

@@ -1,4 +1,4 @@
-import { detectLanguage, resolveVoiceProfileConfig } from "../electron/tts";
+import { detectLanguage, resolveVoiceProfileConfig, resolveFishAudioEmotionTag } from "../electron/tts";
 import { defaultSettings, type CharacterVoiceProfile, type AppSettings } from "../src/shared/types";
 
 export function testVoiceProfile() {
@@ -109,6 +109,30 @@ export function testVoiceProfile() {
     throw new Error(`Fallback engine expected 'voxcpm', got '${resFallback.engine}'`);
   }
   console.log("   ✓ Default Fallback without Profile passed.");
+
+  // 3. Fish Audio S2/S2.1 Emotion Anchor Tag Resolution Tests
+  if (resolveFishAudioEmotionTag("happy") !== "[cheerful]") {
+    throw new Error(`happy emotion tag expected '[cheerful]', got '${resolveFishAudioEmotionTag("happy")}'`);
+  }
+  if (resolveFishAudioEmotionTag("relaxed") !== "[gentle]") {
+    throw new Error(`relaxed emotion tag expected '[gentle]', got '${resolveFishAudioEmotionTag("relaxed")}'`);
+  }
+  if (resolveFishAudioEmotionTag("surprised") !== "[surprised]") {
+    throw new Error(`surprised emotion tag expected '[surprised]', got '${resolveFishAudioEmotionTag("surprised")}'`);
+  }
+  if (resolveFishAudioEmotionTag("sad") !== "[comforting]") {
+    throw new Error(`sad emotion tag expected '[comforting]', got '${resolveFishAudioEmotionTag("sad")}'`);
+  }
+  if (resolveFishAudioEmotionTag("angry") !== "[pout]") {
+    throw new Error(`angry emotion tag expected '[pout]', got '${resolveFishAudioEmotionTag("angry")}'`);
+  }
+  if (resolveFishAudioEmotionTag("neutral") !== "[cheerful]") {
+    throw new Error(`neutral emotion tag expected '[cheerful]', got '${resolveFishAudioEmotionTag("neutral")}'`);
+  }
+  if (resolveFishAudioEmotionTag(undefined) !== "[cheerful]") {
+    throw new Error(`undefined emotion tag expected '[cheerful]', got '${resolveFishAudioEmotionTag(undefined)}'`);
+  }
+  console.log("   ✓ Fish Audio S2.1 Emotion Anchor Tags (happy/relaxed/surprised/sad/angry/neutral) passed.");
 
   console.log("   ✓ ALL Unified Single Voice Profile tests passed cleanly.");
 }

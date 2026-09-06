@@ -14,6 +14,8 @@ import { testLipSyncBridge } from "./lipsync-bridge.test";
 import { testAudioTailTrimmer } from "./audio-tail-trimmer.test";
 import { testVoiceFavorites } from "./voice-favorites.test";
 import { testVoiceProfile } from "./voice-profile.test";
+import { testQwen3Tts } from "./qwen3-tts.test";
+import { testWindowBoundsDrag } from "./window-bounds-drag.test";
 
 console.log("==================================================");
 console.log("       MikuChat-v3 Formal Test Suite Runner       ");
@@ -36,6 +38,8 @@ const suites = [
   { name: "Audio Tail Trimmer (Anti-Scream/Groan Failsafe)", fn: testAudioTailTrimmer },
   { name: "Voice Favorites & Ranking Query", fn: testVoiceFavorites },
   { name: "Character Voice Profile & Language Routing", fn: testVoiceProfile },
+  { name: "Qwen3-TTS Integration & Shared References", fn: testQwen3Tts },
+  { name: "Character Window Bounds & Drag Invariants", fn: testWindowBoundsDrag },
 ];
 
 let passed = 0;

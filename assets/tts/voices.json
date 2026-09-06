@@ -3,6 +3,13 @@
   "notes": "User-trained clone references for VoxCPM2 (wav+transcript). Not official character voices.",
   "voices": [
     {
+      "id": "itsuki_nakano",
+      "displayName": "Itsuki nakano",
+      "wav": "assets/tts/voices/itsuki_nakano/ref.wav",
+      "promptText": "안녕하세요! 만나서 반가워요.",
+      "durationSec": 6.37
+    },
+    {
       "id": "hitori_gotoh",
       "displayName": "Hitori Gotoh",
       "wav": "assets/tts/voices/hitori_gotoh/ref.wav",

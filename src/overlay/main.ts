@@ -1,6 +1,8 @@
 import "./overlay.css";
 import { Ipc } from "../shared/ipc";
 import { stripEmotionTags } from "../shared/emotion";
+import { isLikelyActionProse, QUIZ_OR_INSTRUCTION_REGEX } from "../core/response/ResponseParser";
+import { stripChineseHallucinations } from "../core/response/TtsSanitizer";
 import type { AppSettings, TtsStatus, GestureName, SrsCard, ChatMode, EmotionName, ProviderHealthStatus } from "../shared/types";
 
 const root = document.getElementById("root")!;
@@ -56,6 +58,7 @@ root.innerHTML = `
         <label class="quick-label">🔊 음성 엔진</label>
         <select id="quick-tts-prov" class="quick-select">
           <option value="voxcpm">🚀 VoxCPM2 (로컬 감우/아야카)</option>
+          <option value="qwen3tts">🤖 Qwen3-TTS 1.7B (로컬)</option>
           <option value="fish">🐟 Fish Audio (클라우드 미쿠)</option>
           <option value="irodori">🇯🇵 Irodori-TTS (일본어)</option>
           <option value="web">🔊 시스템 기본 음성</option>
@@ -178,9 +181,21 @@ const errorEl = document.getElementById("error")!;
 
 function setStatus(text: string, type: "ready" | "loading" | "thinking" | "synthesizing" | "speaking" | "listening" = "ready"): void {
   const badge = document.getElementById("status-badge");
+  const wrap = document.getElementById("status-floating-wrap");
   if (badge) {
     badge.className = `status-pill ${type} no-drag`;
     badge.textContent = text;
+  }
+  if (wrap) {
+    const wasActive = wrap.classList.contains("active");
+    if (type === "ready") {
+      wrap.classList.remove("active");
+    } else {
+      wrap.classList.add("active");
+      if (!wasActive && logEl) {
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
   }
 }
 
@@ -244,7 +259,32 @@ const IRODORI_LORA_PRESETS = [
 function populateQuickVoices(provider: string): void {
   if (!quickVoiceSelect) return;
   quickVoiceSelect.innerHTML = "";
-  if (provider === "fish") {
+  if (provider === "qwen3tts") {
+    const curRef = (currentAppSettings?.qwen3ReferenceWav || currentAppSettings?.voxcpmReferenceWav || currentAppSettings?.ttsVoiceId || "my_voice_03").trim();
+    let found = false;
+
+    // Standard voices from catalog (shared reference assets)
+    cachedVoiceCatalog.forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = `🤖 ${v.displayName} (${v.id})`;
+      if (v.id === curRef) {
+        opt.selected = true;
+        found = true;
+      }
+      quickVoiceSelect.appendChild(opt);
+    });
+
+    if (!found && curRef) {
+      const opt = document.createElement("option");
+      opt.value = curRef;
+      const baseName = curRef.split(/[\\/]/).pop() || curRef;
+      opt.textContent = `🤖 커스텀 (${baseName})`;
+      opt.selected = true;
+      quickVoiceSelect.prepend(opt);
+    }
+    quickVoiceSelect.value = curRef;
+  } else if (provider === "fish") {
     const curFishId = (currentAppSettings?.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9").trim();
     let found = false;
 
@@ -380,14 +420,25 @@ quickLlmSelect.addEventListener("change", () => {
 quickVoiceSelect.addEventListener("change", () => {
   const chosen = quickVoiceSelect.value;
   if (!chosen) return;
+  if (quickPreviewAudio) {
+    quickPreviewAudio.pause();
+    quickPreviewAudio = null;
+  }
+  speechSynthesis.cancel();
   const prov = quickTtsProv?.value || currentAppSettings?.ttsProvider || "voxcpm";
-  if (prov === "fish") {
+  if (prov === "qwen3tts") {
+    if (currentAppSettings) {
+      currentAppSettings.qwen3ReferenceWav = chosen;
+      currentAppSettings.ttsVoiceId = chosen;
+      currentAppSettings.ttsProvider = "qwen3tts";
+    }
+    window.miku.send(Ipc.SETTINGS_UPDATE, { qwen3ReferenceWav: chosen, ttsVoiceId: chosen, ttsProvider: "qwen3tts" });
+  } else if (prov === "fish") {
     if (currentAppSettings) {
       currentAppSettings.fishVoiceId = chosen;
       currentAppSettings.ttsProvider = "fish";
     }
     window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: chosen, ttsProvider: "fish" });
-    window.miku.send(Ipc.TEST_FISH_VOICE, { apiKey: currentAppSettings?.fishApiKey, voiceId: chosen });
   } else if (prov === "irodori") {
     if (currentAppSettings) {
       currentAppSettings.irodoriLoraId = chosen;
@@ -397,15 +448,12 @@ quickVoiceSelect.addEventListener("change", () => {
   } else if (prov === "web") {
     if (currentAppSettings) currentAppSettings.ttsProvider = "web";
     window.miku.send(Ipc.SETTINGS_UPDATE, { ttsProvider: "web" });
-    speechSynthesis.cancel();
-    speechSynthesis.speak(new SpeechSynthesisUtterance("안녕하세요! 시스템 기본 음성입니다."));
   } else {
     if (currentAppSettings) {
       currentAppSettings.ttsVoiceId = chosen;
       currentAppSettings.ttsProvider = "voxcpm";
     }
     window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen, ttsProvider: "voxcpm" });
-    window.miku.send(Ipc.PREVIEW_VOICE, chosen);
   }
   updateModelVoiceLabels();
 });
@@ -518,7 +566,12 @@ function updateModelVoiceLabels(): void {
   }
 
   let voiceDesc = "";
-  if (currentAppSettings.ttsProvider === "fish") {
+  if (currentAppSettings.ttsProvider === "qwen3tts") {
+    const qref = (currentAppSettings.qwen3ReferenceWav || currentAppSettings.voxcpmReferenceWav || currentAppSettings.ttsVoiceId || "").trim();
+    const foundVoice = cachedVoiceCatalog.find((v) => v.id === qref);
+    const vName = foundVoice ? foundVoice.displayName : (qref ? (qref.split(/[\\/]/).pop() || qref) : "기본 보이스");
+    voiceDesc = `🤖 Qwen3 (${vName})`;
+  } else if (currentAppSettings.ttsProvider === "fish") {
     const fid = (currentAppSettings.fishVoiceId || "").trim();
     const fav = (currentAppSettings.fishFavorites || []).find((x) => x.id === fid);
     const pre = FISH_VOICE_PRESETS.find((x) => x.id === fid);
@@ -718,13 +771,20 @@ function renderBubbleHtml(text: string): string {
   const withoutThinking = text.replace(/<(?:think|thought)>[\s\S]*?(?:<\/(?:think|thought)>|$)/gi, "");
   // Clean markdown headings (#, ##, ###) at start of lines so bubble text doesn't show ugly hash marks
   const withoutHeadings = withoutThinking.replace(/^[#]+\s*/gm, "");
-  const clean = stripEmotionTags(withoutHeadings);
-  const formatted = formatChatText(clean);
+  // Clean standalone markdown horizontal dividers (---, ***, ___)
+  const withoutDividers = withoutHeadings.replace(/^[ \t]*[-*_~=]{2,}[ \t]*$/gm, "");
+  const clean = stripEmotionTags(withoutDividers);
+  const withoutChinese = stripChineseHallucinations(clean);
+  const formatted = formatChatText(withoutChinese);
   const escaped = escapeHtml(formatted);
   return escaped.replace(/\*([^*]+)\*/g, (match, p1) => {
     const trimmed = p1.trim();
     if (trimmed.length < 2) return match;
     if (/^[은는이가을를과의와도에서로으로]$/.test(trimmed)) return match;
+    // Quiz questions, numbered options, quoted dialogue, or non-action prose must NEVER be dimmed into action-prose!
+    if (QUIZ_OR_INSTRUCTION_REGEX.test(trimmed) || /^[“"']/.test(trimmed) || !isLikelyActionProse(trimmed)) {
+      return p1;
+    }
     return `<span class="action-prose">*${p1}*</span>`;
   });
 }
@@ -935,7 +995,12 @@ window.miku.on(Ipc.TTS_TIMING, (data: unknown) => {
   if (!t || !currentBubble) return;
   const metaEl = currentBubble.querySelector(".bubble-meta") as HTMLElement | null;
   if (!metaEl) return;
-  const provName = t.provider === "fish" ? "Fish Audio" : t.provider === "voxcpm" ? "VoxCPM2" : t.provider === "irodori" ? "Irodori" : "Web";
+  const provName =
+    t.provider === "qwen3tts" ? "Qwen3-TTS" :
+    t.provider === "fish" ? "Fish Audio" :
+    t.provider === "voxcpm" ? "VoxCPM2" :
+    t.provider === "irodori" ? "Irodori" :
+    "Web";
   const totalSec = (t.totalMs / 1000).toFixed(2);
   const synthSec = (t.synthMs / 1000).toFixed(2);
   metaEl.innerHTML = `<span class="latency-pill" title="사용자 전송 후 첫 음성 합성 완료까지 (순수 합성: ${synthSec}초)">⚡ 음성 지연: <b>${totalSec}s</b> <span class="latency-prov">(${provName})</span></span>`;

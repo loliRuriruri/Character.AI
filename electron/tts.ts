@@ -3,11 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AppSettings, TtsStatus, CharacterVoiceProfile, TtsProvider } from "../src/shared/types";
+import type { AppSettings, TtsStatus, CharacterVoiceProfile, TtsProvider, EmotionName } from "../src/shared/types";
 import { sanitizeSpeechForTts } from "../src/core/response/TtsSanitizer";
-import { resolveVoiceWav, voiceById } from "./voices";
+import { resolveVoiceWav, voiceById, getVoiceReferenceAsset } from "./voices";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+export { Qwen3Tts, resolveQwen3WorkerScript } from "./qwenTts";
 
 export type TtsPlay =
   | { kind: "wav"; b64: string; text: string; duration: number }
@@ -456,10 +458,28 @@ export class IrodoriTts {
 }
 
 
+export function resolveFishAudioEmotionTag(emotion?: EmotionName): string {
+  switch (emotion) {
+    case "happy":
+      return "[cheerful]";
+    case "relaxed":
+      return "[gentle]";
+    case "surprised":
+      return "[surprised]";
+    case "sad":
+      return "[comforting]";
+    case "angry":
+      return "[pout]";
+    case "neutral":
+    default:
+      return "[cheerful]";
+  }
+}
+
 export class FishAudioTts {
   constructor(private readonly onStatus: (s: TtsStatus) => void) {}
 
-  async speak(settings: AppSettings, text: string): Promise<TtsPlay> {
+  async speak(settings: AppSettings, text: string, emotion?: EmotionName): Promise<TtsPlay> {
     const rawSpoken = text.trim();
     if (!rawSpoken) return { kind: "none" };
 
@@ -486,12 +506,19 @@ export class FishAudioTts {
       cleanSpoken += /[\u3040-\u30ff\u4e00-\u9faf]$/.test(cleanSpoken) ? "。" : ".";
     }
 
+    // Anchor Fish Audio S2/S2.1 emotional prosody so per-sentence streaming doesn't suffer tone plunges
+    const emotionTag = resolveFishAudioEmotionTag(emotion);
+    let taggedSpoken = cleanSpoken;
+    if (!taggedSpoken.trim().startsWith("[")) {
+      taggedSpoken = `${emotionTag} ${taggedSpoken}`;
+    }
+
     this.onStatus("synthesizing");
     const voiceId = (settings.fishVoiceId || "").trim() || "acc8237220d8470985ec9be6c4c480a9";
     const latency = settings.fishLatency || "low";
 
     const requestPayload = {
-      text: cleanSpoken,
+      text: taggedSpoken,
       reference_id: voiceId,
       format: "wav",
       latency,
@@ -603,10 +630,14 @@ export function resolveVoiceProfileConfig(
 } {
   const detectedLang = detectLanguage(text);
 
-  // Unified Single Voice Mode:
-  // Strictly maintain a single active engine and voice identity across all languages in a session.
-  // Language-based cross-engine switching is removed to prevent tone destruction and latency spikes.
-  const engine: TtsProvider = baseSettings.ttsProvider || profile?.preferredEngine?.default || "voxcpm";
+  // If profile explicitly disables unifiedSingleVoiceMode (unifiedSingleVoiceMode === false),
+  // allow per-language preferredEngine override (ko/ja/en).
+  // Otherwise default to baseSettings.ttsProvider (or profile preferredEngine default).
+  const isUnified = profile?.unifiedSingleVoiceMode !== false;
+  const langKey = detectedLang === "ko" ? "ko" : detectedLang === "ja" ? "ja" : detectedLang === "en" ? "en" : undefined;
+  const engine: TtsProvider = (!isUnified && langKey && profile?.preferredEngine?.[langKey])
+    ? profile.preferredEngine[langKey]!
+    : (baseSettings.ttsProvider || profile?.preferredEngine?.default || "voxcpm");
 
   if (!profile) {
     return {
@@ -620,15 +651,21 @@ export function resolveVoiceProfileConfig(
   const effective: AppSettings = { ...baseSettings, ttsProvider: engine };
 
   if (engine === "voxcpm" && profile.voxcpm) {
-    // Single unified reference voice across all languages to preserve speaker identity
-    const refWav = profile.voxcpm.defaultReferenceWav
+    const perLangRef = !isUnified
+      ? (detectedLang === "ko" ? profile.voxcpm.koReferenceWav : detectedLang === "ja" ? profile.voxcpm.jaReferenceWav : undefined)
+      : undefined;
+    const refWav = perLangRef
+      || profile.voxcpm.defaultReferenceWav
       || profile.voxcpm.koReferenceWav
       || profile.voxcpm.jaReferenceWav
       || baseSettings.voxcpmReferenceWav;
     effective.voxcpmReferenceWav = resolveVoiceWav(refWav);
     effective.ttsVoiceId = refWav;
 
-    const promptText = profile.voxcpm.koPromptText || profile.voxcpm.jaPromptText;
+    const perLangPrompt = !isUnified
+      ? (detectedLang === "ko" ? profile.voxcpm.koPromptText : detectedLang === "ja" ? profile.voxcpm.jaPromptText : undefined)
+      : undefined;
+    const promptText = perLangPrompt || profile.voxcpm.koPromptText || profile.voxcpm.jaPromptText;
     if (promptText) {
       effective.voxcpmPromptText = promptText;
     } else {
@@ -638,19 +675,46 @@ export function resolveVoiceProfileConfig(
       }
     }
   } else if (engine === "fish") {
-    // Single unified Fish Audio voice ID across all languages
-    let fishId = baseSettings.fishVoiceId;
-    if (isValidFishVoiceId(profile.fish?.referenceId)) {
-      fishId = profile.fish!.referenceId!;
-    } else if (isValidFishVoiceId(profile.fish?.koReferenceId)) {
-      fishId = profile.fish!.koReferenceId!;
-    } else if (isValidFishVoiceId(profile.fish?.jaReferenceId)) {
-      fishId = profile.fish!.jaReferenceId!;
-    }
+    const perLangFishId = !isUnified
+      ? (detectedLang === "ko" ? profile.fish?.koReferenceId : detectedLang === "ja" ? profile.fish?.jaReferenceId : undefined)
+      : undefined;
+    let fishId = (perLangFishId && isValidFishVoiceId(perLangFishId))
+      ? perLangFishId
+      : (isValidFishVoiceId(profile.fish?.referenceId) ? profile.fish!.referenceId! : baseSettings.fishVoiceId);
     effective.fishVoiceId = fishId || "acc8237220d8470985ec9be6c4c480a9";
   } else if (engine === "irodori" && profile.irodori) {
     if (profile.irodori.loraId) {
       effective.irodoriLoraId = profile.irodori.loraId;
+    }
+  } else if (engine === "qwen3tts") {
+    const perLangRef = !isUnified
+      ? (detectedLang === "ko" ? profile.qwen3tts?.koReferenceWav : detectedLang === "ja" ? profile.qwen3tts?.jaReferenceWav : undefined)
+      : undefined;
+    const refWav = perLangRef
+      || profile.qwen3tts?.referenceWav
+      || profile.voxcpm?.defaultReferenceWav
+      || profile.voxcpm?.koReferenceWav
+      || profile.voxcpm?.jaReferenceWav
+      || baseSettings.qwen3ReferenceWav
+      || baseSettings.ttsVoiceId
+      || baseSettings.voxcpmReferenceWav;
+    effective.qwen3ReferenceWav = resolveVoiceWav(refWav);
+    effective.ttsVoiceId = refWav;
+
+    const asset = getVoiceReferenceAsset(effective.qwen3ReferenceWav);
+    const perLangPrompt = !isUnified
+      ? (detectedLang === "ko" ? profile.qwen3tts?.koPromptText : detectedLang === "ja" ? profile.qwen3tts?.jaPromptText : undefined)
+      : undefined;
+    const promptText = perLangPrompt
+      || profile.qwen3tts?.promptText
+      || profile.qwen3tts?.koPromptText
+      || profile.voxcpm?.koPromptText
+      || profile.voxcpm?.jaPromptText
+      || (asset && asset.transcript ? asset.transcript : undefined)
+      || baseSettings.qwen3PromptText
+      || "";
+    if (promptText) {
+      effective.qwen3PromptText = promptText;
     }
   }
 

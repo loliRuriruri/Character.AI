@@ -1,6 +1,6 @@
 export type LlmProvider = "ollama" | "gemini" | "easyproxy";
 
-export type TtsProvider = "fish" | "voxcpm" | "irodori" | "web";
+export type TtsProvider = "fish" | "voxcpm" | "irodori" | "qwen3tts" | "web";
 
 export type TtsStatus = "idle" | "loading" | "synthesizing" | "speaking";
 
@@ -38,6 +38,18 @@ export type SrsCard = {
   createdAt: number;
 };
 
+export type VoiceReferenceAsset = {
+  id: string;
+  displayName: string;
+  language: "ko" | "ja" | "en" | "auto";
+  audioPath: string;
+  transcript?: string;
+  durationSec?: number;
+  sampleRate?: number;
+  source?: "user" | "recording" | "imported" | "other";
+  rightsConfirmed?: boolean;
+};
+
 export type AppSettings = {
   provider: LlmProvider;
   model: string;
@@ -54,6 +66,10 @@ export type AppSettings = {
   voxcpmReferenceWav: string;
   voxcpmPromptText: string;
   voxcpmDevice: string;
+  qwen3PythonPath: string;
+  qwen3ReferenceWav: string;
+  qwen3PromptText: string;
+  qwen3Device: string;
   characterScale: number;
   vrmModelPath: string;
   vrmaMotionPath: string;
@@ -81,11 +97,18 @@ export type FishVoiceFavorite = {
 export type CharacterVoiceProfile = {
   id: string;
   displayName: string;
+  unifiedSingleVoiceMode?: boolean;
   preferredEngine: {
     ko?: TtsProvider;
     ja?: TtsProvider;
     en?: TtsProvider;
     default?: TtsProvider;
+  };
+  references?: {
+    ko?: string;
+    ja?: string;
+    en?: string;
+    default?: string;
   };
   fish?: {
     referenceId?: string;
@@ -99,6 +122,15 @@ export type CharacterVoiceProfile = {
     koPromptText?: string;
     jaPromptText?: string;
     cloneMode?: "reference" | "ultimate";
+  };
+  qwen3tts?: {
+    referenceWav?: string;
+    koReferenceWav?: string;
+    jaReferenceWav?: string;
+    promptText?: string;
+    koPromptText?: string;
+    jaPromptText?: string;
+    xVectorOnly?: boolean;
   };
   irodori?: {
     modelId?: string;
@@ -121,8 +153,12 @@ export const defaultSettings: AppSettings = {
   ttsVoiceId: "nilou",
   voxcpmPythonPath: "C:\\Users\\a4jud\\VoxCPM\\.venv\\Scripts\\python.exe",
   voxcpmReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
-  voxcpmPromptText: "ノイズの多い環境でも、私の音声認識は正確です。あなたの囁き声も、一言も漏らさず拾えますよ。",
+  voxcpmPromptText: "노이즈의 많은 환경에서도, 저의 음성 인식은 정확해요. 마스터의 속삭임도 한 마디도 놓치지 않고 들을 수 있답니다.",
   voxcpmDevice: "auto",
+  qwen3PythonPath: "C:\\Users\\a4jud\\Qwen3-TTS\\.venv\\Scripts\\python.exe",
+  qwen3ReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+  qwen3PromptText: "노이즈가 많은 환경에서도 제 음성 인식은 정확해요. 마스터의 속삭임도 한 마디도 놓치지 않고 들을 수 있답니다.",
+  qwen3Device: "cuda:0",
   characterScale: 1.0,
   vrmModelPath: "/models/HatsuneMikuNT.vrm",
   vrmaMotionPath: "/models/idle_loop.vrma",
@@ -154,6 +190,14 @@ export const defaultSettings: AppSettings = {
         jaReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
         jaPromptText: "ノイズの多い環境でも、私の音声認識は正確です。あなたの囁き声も、一言も漏らさず拾えますよ。",
         cloneMode: "ultimate",
+      },
+      qwen3tts: {
+        referenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        koReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        koPromptText: "노이즈가 많은 환경에서도 제 음성 인식은 정확해요. 마스터의 속삭임도 한 마디도 놓치지 않고 들을 수 있답니다.",
+        jaReferenceWav: "C:\\TEST\\MikuChat-v3\\assets\\tts\\my_voice_ref.wav",
+        jaPromptText: "ノイズの多い環境でも、私の音声認識は正確です。あなたの囁き声も、一言も漏らさず拾えますよ。",
+        xVectorOnly: false,
       },
     },
   ],

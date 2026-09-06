@@ -8,8 +8,8 @@ import { SrsEngine } from "./srs";
 import { defaultSettings, type AppSettings, type AppState, type ChatMessage, type TtsStatus, type GestureName, type ViewMode } from "../src/shared/types";
 import { completeChat, LlmError } from "./llm";
 import { loadSettings, saveSettings } from "./settings";
-import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, resolveVoiceProfileConfig, isValidFishVoiceId, type TtsPlay } from "./tts";
-import { applyVoiceSelection, loadVoiceCatalog, voiceById, resolveVoiceWav, addVoiceToCatalog } from "./voices";
+import { VoxcpmTts, IrodoriTts, FishAudioTts, Qwen3Tts, toWindowlessPython, resolveVoiceProfileConfig, isValidFishVoiceId, detectLanguage, type TtsPlay } from "./tts";
+import { applyVoiceSelection, loadVoiceCatalog, voiceById, resolveVoiceWav, addVoiceToCatalog, getVoiceReferenceAsset } from "./voices";
 import { CharacterCore } from "../src/core/character/CharacterCore";
 import { PromptComposer } from "../src/core/prompt/PromptComposer";
 import { MemoryManager } from "../src/core/memory/MemoryManager";
@@ -39,6 +39,7 @@ const sceneStateManager = new SceneStateManager();
 const memoryManager = new MemoryManager({ maxContextTokens: 4096 });
 
 const tts = new VoxcpmTts((status) => setTtsStatus(status));
+const qwen3Tts = new Qwen3Tts((status) => setTtsStatus(status));
 const srs = new SrsEngine();
 const irodoriTts = new IrodoriTts((status) => setTtsStatus(status));
 const fishTts = new FishAudioTts((status) => setTtsStatus(status));
@@ -122,8 +123,9 @@ function transparentWinOpts(extra: Electron.BrowserWindowConstructorOptions): El
 
 function createCharacterWindow(): BrowserWindow {
   const wa = screen.getPrimaryDisplay().workArea;
-  const width = 440;
-  const height = 580;
+  const isPip = settings.viewMode === "pip";
+  const width = isPip ? 200 : 440;
+  const height = isPip ? 300 : 580;
   const x = wa.x + wa.width - width - 24;
   const y = wa.y + wa.height - height - 24;
   const win = new BrowserWindow(transparentWinOpts({
@@ -139,6 +141,8 @@ function createCharacterWindow(): BrowserWindow {
     resizable: false,
     skipTaskbar: false,
   }));
+  win.setMinimumSize(width, height);
+  win.setMaximumSize(width, height);
   win.setBackgroundColor("#00000000");
   win.setAlwaysOnTop(true, "screen-saver");
   win.setIgnoreMouseEvents(true, { forward: true });
@@ -147,6 +151,9 @@ function createCharacterWindow(): BrowserWindow {
       fs.appendFileSync(path.join(process.cwd(), "character.log"), `[${level}] ${message} (${sourceId}:${line})
 `, "utf-8");
     } catch {}
+  });
+  win.webContents.once("did-finish-load", () => {
+    win.webContents.send(Ipc.SET_VIEW_MODE, settings.viewMode || "full");
   });
   loadRenderer(win, "index.html");
   return win;
@@ -510,24 +517,31 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
     // 1. Action Cues 선제적 제스처/모션 트리거 (First-Motion Reaction)
     if (parsed.actionCues.length > 0) {
       handleActionCues(parsed.actionCues, parsed.speechText);
-    } else if (!firstChunkHandled) {
-      // 행동 서술이 없더라도 첫 문장 대사 키워드에서 감정/제스처 추론
+    } else {
+      // 행동 서술이 없더라도 대사 키워드에서 감정/제스처 추론
       const fallbackReq = ActionInterpreter.interpret([], parsed.speechText);
-      state.emotion = fallbackReq.emotion || "neutral";
-      state.gesture = fallbackReq.gesture || "idle";
-      sceneStateManager.setEmotion(state.emotion);
-      broadcast(Ipc.EMOTION, state.emotion);
-      if (fallbackReq.gesture) {
-        const emitTime = Date.now();
-        broadcast(Ipc.GESTURE, {
-          gesture: fallbackReq.gesture,
-          spanCompleteTime: spanTime,
-          gestureEmitTime: emitTime,
-          segmentId,
-          expiresAt,
-        });
+      if (fallbackReq.emotion && fallbackReq.emotion !== "neutral") {
+        state.emotion = fallbackReq.emotion;
+        sceneStateManager.setEmotion(state.emotion);
+        broadcast(Ipc.EMOTION, state.emotion);
       }
-      pushState();
+      if (!firstChunkHandled) {
+        state.emotion = fallbackReq.emotion || "neutral";
+        state.gesture = fallbackReq.gesture || "idle";
+        sceneStateManager.setEmotion(state.emotion);
+        broadcast(Ipc.EMOTION, state.emotion);
+        if (fallbackReq.gesture) {
+          const emitTime = Date.now();
+          broadcast(Ipc.GESTURE, {
+            gesture: fallbackReq.gesture,
+            spanCompleteTime: spanTime,
+            gestureEmitTime: emitTime,
+            segmentId,
+            expiresAt,
+          });
+        }
+        pushState();
+      }
     }
 
     firstChunkHandled = true;
@@ -535,6 +549,15 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
     // 2. TTS 발화 대사 정제 (*행동 서술* 및 따옴표 완전 제거)
     const cleanSpoken = sanitizeSpeechForTts(parsed.speechText.trim());
     if (!cleanSpoken) return;
+
+    // Failsafe: If the spoken chunk is detected as Chinese ("zh"), drop it completely so TTS never speaks Chinese
+    if (detectLanguage(cleanSpoken) === "zh") {
+      console.warn("[TTS Failsafe] Dropping Chinese hallucination chunk from TTS:", cleanSpoken);
+      return;
+    }
+
+    // Snapshot current emotion for Fish Audio vocal anchor conditioning
+    const chunkEmotion = state.emotion || "happy";
 
     const p = (async () => {
       if (ttsPromiseQueue.length > 0) {
@@ -552,9 +575,11 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
         let play: TtsPlay;
         try {
           if (engine === "fish") {
-            play = await fishTts.speak(effectiveSettings, cleanSpoken);
+            play = await fishTts.speak(effectiveSettings, cleanSpoken, chunkEmotion);
           } else if (engine === "irodori") {
             play = await irodoriTts.speak(effectiveSettings, cleanSpoken);
+          } else if (engine === "qwen3tts") {
+            play = await qwen3Tts.speak(effectiveSettings, cleanSpoken);
           } else {
             play = await tts.speak(effectiveSettings, cleanSpoken);
           }
@@ -677,7 +702,10 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
       }
     }
 
-    const { remainingActions, remainingSpeech } = actionSpanBuffer.flush();
+    const { remainingActions, remainingSpeech, remainingDisplay } = actionSpanBuffer.flush();
+    if (remainingDisplay) {
+      broadcast(Ipc.LLM_DELTA, remainingDisplay);
+    }
     if (remainingActions.length > 0) {
       handleActionCues(remainingActions, remainingSpeech);
     }
@@ -714,8 +742,10 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
     state.isThinking = false;
     pushState();
 
-    if (sentenceBuffer.trim()) {
+    if (sentenceBuffer.trim() && /[가-힣a-zA-Z0-9\u3040-\u30ff\u4e00-\u9faf]/.test(sentenceBuffer)) {
       queueSentenceForTts(sentenceBuffer.trim());
+      sentenceBuffer = "";
+    } else {
       sentenceBuffer = "";
     }
 
@@ -1398,15 +1428,33 @@ function setupIpc(): void {
           activeProfile.preferredEngine.ko = "fish";
         }
       }
-      if (patch.ttsVoiceId) {
+      if (patch.ttsVoiceId || patch.qwen3ReferenceWav) {
+        const vId = (patch.ttsVoiceId || patch.qwen3ReferenceWav!).trim();
+        const resolvedWav = resolveVoiceWav(vId);
+
         if (!activeProfile.voxcpm) activeProfile.voxcpm = {};
-        activeProfile.voxcpm.koReferenceWav = patch.ttsVoiceId;
-        activeProfile.voxcpm.defaultReferenceWav = resolveVoiceWav(patch.ttsVoiceId);
+        activeProfile.voxcpm.koReferenceWav = vId;
+        activeProfile.voxcpm.defaultReferenceWav = resolvedWav;
+
+        if (!activeProfile.qwen3tts) activeProfile.qwen3tts = {};
+        activeProfile.qwen3tts.referenceWav = vId;
+        activeProfile.qwen3tts.koReferenceWav = vId;
+
+        const asset = getVoiceReferenceAsset(vId);
+        if (asset && asset.transcript) {
+          activeProfile.voxcpm.koPromptText = asset.transcript;
+          activeProfile.qwen3tts.promptText = asset.transcript;
+          activeProfile.qwen3tts.koPromptText = asset.transcript;
+          settings.voxcpmPromptText = asset.transcript;
+          settings.qwen3PromptText = asset.transcript;
+        }
+
         if (!patch.ttsProvider) {
-          settings.ttsProvider = "voxcpm";
+          const eng = settings.ttsProvider === "qwen3tts" ? "qwen3tts" : "voxcpm";
+          settings.ttsProvider = eng;
           if (!activeProfile.preferredEngine) activeProfile.preferredEngine = {};
-          activeProfile.preferredEngine.default = "voxcpm";
-          activeProfile.preferredEngine.ko = "voxcpm";
+          activeProfile.preferredEngine.default = eng;
+          activeProfile.preferredEngine.ko = eng;
         }
       }
       if (patch.irodoriLoraId) {
@@ -1449,6 +1497,8 @@ function setupIpc(): void {
 
   ipcMain.on(Ipc.CLEAR_HISTORY, () => {
     currentGenerationId++;
+    tts.cancelPending();
+    qwen3Tts.cancelPending();
     if (currentAbortController) {
       try { currentAbortController.abort(); } catch {}
       currentAbortController = null;
@@ -1466,8 +1516,9 @@ function setupIpc(): void {
 
   ipcMain.on(Ipc.SPEAKING, (_ev, active: unknown) => {
     state.speaking = Boolean(active);
-    if (!state.speaking && state.ttsStatus !== "loading" && state.ttsStatus !== "synthesizing") {
+    if (!state.speaking) {
       state.ttsStatus = "idle";
+      broadcast(Ipc.TTS_STATUS, "idle");
     }
     pushState();
   });
@@ -1479,8 +1530,9 @@ function setupIpc(): void {
     if (dx === 0 && dy === 0) return;
     try {
       const b = characterWin.getBounds();
-      const targetW = settings.viewMode === "pip" ? 200 : 440;
-      const targetH = settings.viewMode === "pip" ? 300 : 580;
+      const isPip = settings.viewMode === "pip";
+      const targetW = isPip ? 200 : 440;
+      const targetH = isPip ? 300 : 580;
       characterWin.setBounds({
         x: Math.round(b.x + dx),
         y: Math.round(b.y + dy),
@@ -1536,10 +1588,22 @@ app.whenReady().then(() => {
     settings.ttsVoiceId = cat.defaultId || cat.voices[0].id;
   }
   const appliedInit = applyVoiceSelection(settings.ttsVoiceId);
-  if (appliedInit) settings = { ...settings, ...appliedInit };
+  if (appliedInit) {
+    settings = { ...settings, ...appliedInit };
+    const activeProf = (settings.voiceProfiles || []).find((p) => p.id === settings.activeVoiceProfileId);
+    if (activeProf) {
+      if (!activeProf.qwen3tts) activeProf.qwen3tts = {};
+      activeProf.qwen3tts.referenceWav = settings.ttsVoiceId;
+      activeProf.qwen3tts.promptText = appliedInit.qwen3PromptText;
+      if (!activeProf.voxcpm) activeProf.voxcpm = {};
+      activeProf.voxcpm.defaultReferenceWav = appliedInit.voxcpmReferenceWav;
+      activeProf.voxcpm.koPromptText = appliedInit.voxcpmPromptText;
+    }
+  }
 
-  // Prewarm VoxCPM worker in the background at startup so first synthesis is instant
+  // Prewarm TTS workers in the background at startup so first synthesis is instant
   tts.prewarm(settings);
+  qwen3Tts.prewarm(settings);
 
   providerHealth.start(
     () => settings,
@@ -1572,6 +1636,8 @@ app.on("will-quit", () => {
   providerHealth.stop();
   globalShortcut.unregisterAll();
   tts.stopWorker();
+  qwen3Tts.stopWorker();
+  irodoriTts.stopWorker();
 });
 
 app.on("window-all-closed", () => {
