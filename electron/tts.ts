@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppSettings, TtsStatus, CharacterVoiceProfile, TtsProvider } from "../src/shared/types";
 import { sanitizeSpeechForTts } from "../src/core/response/TtsSanitizer";
-import { resolveVoiceWav } from "./voices";
+import { resolveVoiceWav, voiceById } from "./voices";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -617,22 +617,36 @@ export function resolveVoiceProfileConfig(
   if (engine === "voxcpm" && profile.voxcpm) {
     if (detectedLang === "ko") {
       const koRef = profile.voxcpm.koReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = koRef;
+      effective.voxcpmReferenceWav = resolveVoiceWav(koRef);
       effective.ttsVoiceId = koRef;
       if (profile.voxcpm.koPromptText) {
         effective.voxcpmPromptText = profile.voxcpm.koPromptText;
+      } else {
+        const catVoice = voiceById(koRef);
+        if (catVoice?.promptText) {
+          effective.voxcpmPromptText = catVoice.promptText;
+        }
       }
     } else if (detectedLang === "ja") {
       const jaRef = profile.voxcpm.jaReferenceWav || profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = jaRef;
+      effective.voxcpmReferenceWav = resolveVoiceWav(jaRef);
       effective.ttsVoiceId = jaRef;
       if (profile.voxcpm.jaPromptText) {
         effective.voxcpmPromptText = profile.voxcpm.jaPromptText;
+      } else {
+        const catVoice = voiceById(jaRef);
+        if (catVoice?.promptText) {
+          effective.voxcpmPromptText = catVoice.promptText;
+        }
       }
     } else {
       const defRef = profile.voxcpm.defaultReferenceWav || baseSettings.voxcpmReferenceWav;
-      effective.voxcpmReferenceWav = defRef;
+      effective.voxcpmReferenceWav = resolveVoiceWav(defRef);
       effective.ttsVoiceId = defRef;
+      const catVoice = voiceById(defRef);
+      if (catVoice?.promptText) {
+        effective.voxcpmPromptText = catVoice.promptText;
+      }
     }
   } else if (engine === "fish" && profile.fish) {
     if (detectedLang === "ko" && profile.fish.koReferenceId) {

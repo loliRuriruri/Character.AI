@@ -39,11 +39,38 @@ export function loadVoiceCatalog(): VoiceCatalog {
   }
 }
 
-export function resolveVoiceWav(wav: string): string {
-  const trimmed = (wav || "").trim();
+export function resolveVoiceWav(wavOrId: string): string {
+  const trimmed = (wavOrId || "").trim();
   if (!trimmed) return trimmed;
-  if (path.isAbsolute(trimmed)) return trimmed;
-  return path.join(projectRoot(), trimmed);
+
+  // 1. If absolute path and exists
+  if (path.isAbsolute(trimmed) && exists(trimmed)) return trimmed;
+
+  // 2. If it's a voice ID in the catalog
+  const catalogVoice = voiceById(trimmed);
+  if (catalogVoice && catalogVoice.wav) {
+    const fromCat = path.isAbsolute(catalogVoice.wav)
+      ? catalogVoice.wav
+      : path.join(projectRoot(), catalogVoice.wav);
+    if (exists(fromCat)) return fromCat;
+  }
+
+  // 3. If it's inside assets/tts/voices/<id>/ref.wav
+  const refWav = path.join(projectRoot(), "assets", "tts", "voices", trimmed, "ref.wav");
+  if (exists(refWav)) return refWav;
+
+  // 4. If relative path to projectRoot
+  const full = path.join(projectRoot(), trimmed);
+  if (exists(full)) return full;
+
+  // 5. Fallback: try default catalog voice
+  const defaultV = loadVoiceCatalog().voices[0];
+  if (defaultV && defaultV.wav) {
+    const defWav = path.isAbsolute(defaultV.wav) ? defaultV.wav : path.join(projectRoot(), defaultV.wav);
+    if (exists(defWav)) return defWav;
+  }
+
+  return full;
 }
 
 export function voiceById(id: string): TtsVoice | undefined {

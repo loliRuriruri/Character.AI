@@ -3,12 +3,19 @@
   "notes": "User-trained clone references for VoxCPM2 (wav+transcript). Not official character voices.",
   "voices": [
     {
+      "id": "hitori_gotoh",
+      "displayName": "Hitori Gotoh",
+      "wav": "assets/tts/voices/hitori_gotoh/ref.wav",
+      "promptText": "今日も押入れで一人、ギターをかき鳴らして…ああっ、また近所迷惑って通報されたらどうしよう。でも、ネットのみんなは私の演奏を待ってるはず。現実ではクラスの隅っこで空気みたいな存在だけど、この瞬間だけは…フフフ、ギターヒーローとして輝ける気がするんです。",
+      "durationSec": 10
+    },
+    {
       "id": "my_voice_01",
       "displayName": "내 목소리 1",
       "wav": "assets/tts/voices/my_voice_01/ref.wav",
       "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
       "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\my_voice_01\\neutral\\wavs\\0077.wav",
-      "durationSec": 8.0,
+      "durationSec": 8,
       "rms": 0.1348
     },
     {
@@ -17,7 +24,7 @@
       "wav": "assets/tts/voices/my_voice_02/ref.wav",
       "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
       "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\my_voice_02\\neutral\\wavs\\0077.wav",
-      "durationSec": 8.0,
+      "durationSec": 8,
       "rms": 0.1348
     },
     {
@@ -35,7 +42,7 @@
       "wav": "assets/tts/voices/reze/ref.wav",
       "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
       "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\reze\\neutral\\wavs\\0077.wav",
-      "durationSec": 8.0,
+      "durationSec": 8,
       "rms": 0.1348
     },
     {
@@ -44,7 +51,7 @@
       "wav": "assets/tts/voices/reze2/ref.wav",
       "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
       "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\reze2\\neutral\\wavs\\0077.wav",
-      "durationSec": 8.0,
+      "durationSec": 8,
       "rms": 0.1348
     },
     {
@@ -53,7 +60,7 @@
       "wav": "assets/tts/voices/test_voice_200/ref.wav",
       "promptText": "インターフェースの配色を、ダークモードに変更しました。視認性が上がり、バッテリーも長持ちします。",
       "sourceWav": "C:\\Users\\a4jud\\Voice-Design-Cloner\\output\\lora_data\\lab\\test_voice_200\\neutral\\wavs\\0077.wav",
-      "durationSec": 8.0,
+      "durationSec": 8,
       "rms": 0.1348
     },
     {

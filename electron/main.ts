@@ -92,6 +92,9 @@ function setTtsStatus(status: TtsStatus): void {
 
 function broadcastTtsPlay(play: TtsPlay, segmentId?: string): void {
   if (!characterWin || characterWin.isDestroyed()) return;
+  if (play.kind === "web" && (play as any).fallback) {
+    console.warn("[TTS] Web Speech fallback triggered! Reason:", (play as any).reason || "unknown");
+  }
   const payload = segmentId ? { ...play, segmentId } : play;
   if (play.kind === "wav") characterWin.webContents.send(Ipc.TTS_AUDIO, payload);
   else if (play.kind === "web") characterWin.webContents.send(Ipc.TTS_WEB, payload);
@@ -565,10 +568,11 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
         if (!isFirstAudioReported) {
           isFirstAudioReported = true;
           const totalLatencyMs = Date.now() - userRequestStartTime;
+          const actualProvider = (play.kind === "web" && (play as any).fallback) ? "web" : engine;
           broadcast(Ipc.TTS_TIMING, {
             totalMs: totalLatencyMs,
             synthMs: synthDurationMs,
-            provider: engine,
+            provider: actualProvider,
           });
         }
       } catch (err) {
