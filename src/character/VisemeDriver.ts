@@ -32,6 +32,13 @@ export class VisemeDriver {
     return this.active || this.fadeOutTimer > 0;
   }
 
+  // Single Arbitration Point guard: when managed by LipSyncController, direct writes to VRM are suppressed.
+  public directWriteEnabled = false;
+
+  getWeights(): Record<VisemeName, number> {
+    return { ...this.currentWeights };
+  }
+
   constructor(private readonly vrm: VRM) {}
 
   speak(text: string, durationSec: number): void {
@@ -78,7 +85,7 @@ export class VisemeDriver {
         for (const name of ALL_VISEMES) {
           this.currentWeights[name] = 0;
           this.targetWeights[name] = 0;
-          em.setValue(name, 0);
+          if (this.directWriteEnabled) em.setValue(name, 0);
         }
         return;
       }
@@ -94,11 +101,13 @@ export class VisemeDriver {
       const next = cur + (target - cur) * rampFactor;
       this.currentWeights[name] = Math.abs(next) < 0.001 ? 0 : next;
       if (this.currentWeights[name] > 0) hasNonZero = true;
-      em.setValue(name, this.currentWeights[name]);
+      if (this.directWriteEnabled) em.setValue(name, this.currentWeights[name]);
     }
 
     if (!this.active && this.fadeOutTimer <= 0 && !hasNonZero) {
-      for (const name of ALL_VISEMES) em.setValue(name, 0);
+      if (this.directWriteEnabled) {
+        for (const name of ALL_VISEMES) em.setValue(name, 0);
+      }
     }
   }
 }

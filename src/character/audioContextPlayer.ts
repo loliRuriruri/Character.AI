@@ -9,6 +9,8 @@
  * AnalyserNode RMS energy calculation, and token-guarded source lifecycle.
  */
 
+import { lipSyncBus } from "./lipSyncBus";
+
 export interface AudioTelemetrySample {
   t: number; // ms from start
   rawRms: number;
@@ -161,6 +163,7 @@ export class AudioContextPlayer {
     this.smoothedRms = 0;
     this.currentMouthOpen = 0;
     this.isCurrentlySpeaking = false;
+    lipSyncBus.emit({ type: "rms:stop" });
   }
 
   /**
@@ -204,6 +207,7 @@ export class AudioContextPlayer {
   ): Promise<void> {
     // 1. Stop any currently active playback
     this.stop();
+    lipSyncBus.emit({ type: "rms:start" });
 
     // 2. Prepare ArrayBuffer
     let arrayBuffer: ArrayBuffer;
@@ -287,6 +291,16 @@ export class AudioContextPlayer {
       const rawRms = computeRms(samples);
       this.smoothedRms = computeSmoothedRms(this.smoothedRms, rawRms);
       this.currentMouthOpen = computeMouthOpen(this.smoothedRms);
+
+      lipSyncBus.emit({
+        type: "rms:frame",
+        payload: {
+          mouthOpen: this.currentMouthOpen,
+          rawRms,
+          smoothedRms: this.smoothedRms,
+          speaking: this.isCurrentlySpeaking,
+        },
+      });
 
       if (this.telemetrySubscribers.size > 0) {
         const sample: AudioTelemetrySample = {

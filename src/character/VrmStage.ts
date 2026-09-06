@@ -6,6 +6,7 @@ import { BlinkEngine } from "./BlinkEngine";
 import { MotionDirector } from "./MotionDirector";
 import { LookAtEyes } from "./LookAtEyes";
 import { VisemeDriver } from "./VisemeDriver";
+import { LipSyncController } from "./LipSyncController";
 import { MOTION_CONFIG } from "./motionConfig";
 import { clearMixamoClipCache } from "./loadMixamoAnimation";
 import type { EmotionName, GestureName, ViewMode } from "../shared/types";
@@ -34,6 +35,7 @@ export class VrmStage {
   private look: LookAtEyes | null = null;
   private blink: BlinkEngine | null = null;
   private viseme: VisemeDriver | null = null;
+  private lipSync: LipSyncController | null = null;
   private clock = new THREE.Clock();
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -111,6 +113,8 @@ export class VrmStage {
       this.motion = null;
       this.look = null;
       this.blink = null;
+      this.lipSync?.dispose();
+      this.lipSync = null;
       this.viseme = null;
       this.skinnedMeshes = [];
     }
@@ -203,6 +207,7 @@ export class VrmStage {
     this.look = new LookAtEyes(vrm, this.camera);
     this.blink = new BlinkEngine(vrm, () => this.look?.onBlink());
     this.viseme = new VisemeDriver(vrm);
+    this.lipSync = new LipSyncController(vrm, this.viseme);
 
     this.frameModel(vrm);
     this.startLoop();
@@ -337,7 +342,7 @@ export class VrmStage {
         const isSmiling = this.emotionWeights.happy > 0.25 || this.emotionWeights.relaxed > 0.25;
         this.updateExpressionsV2(dt);
         this.blink?.update(dt, isSmiling);
-        this.viseme?.update(dt);
+        this.lipSync?.update(dt);
 
         // 6) vrm.update(dt) — 유일한 호출 지점, 반드시 렌더 직전 마지막!
         if (this.vrm) {
@@ -360,7 +365,7 @@ export class VrmStage {
         this.look?.update(dt);
         const isSmiling = this.emotionWeights.happy > 0.25 || this.emotionWeights.relaxed > 0.25;
         this.blink?.update(dt, isSmiling);
-        this.viseme?.update(dt);
+        this.lipSync?.update(dt);
         this.vrm?.update(dt);
         this.look?.restoreHead();
         this.updateDirectMorphTargets(dt);
@@ -388,9 +393,9 @@ export class VrmStage {
     }
 
     // Strict mouth and facial expression limit:
-    // When viseme is active (speaking), emotion mouth influence is scaled to 0.20
+    // When lipSync or viseme is active (speaking), emotion mouth influence is scaled to 0.20
     // Viseme target is 0.40, ensuring emotion (0.20) + viseme (0.40) <= 0.60 maximum!
-    const isSpeaking = this.viseme?.isActive ?? false;
+    const isSpeaking = this.lipSync?.isSpeaking ?? this.viseme?.isActive ?? false;
     const maxEmotion = isSpeaking ? 0.20 : 0.45;
     em.setValue("happy", this.emotionWeights.happy * maxEmotion);
     em.setValue("relaxed", this.emotionWeights.relaxed * maxEmotion);
@@ -633,10 +638,18 @@ export class VrmStage {
   }
 
   speakVisemes(text: string, durationSec: number): void {
-    this.viseme?.speak(text, durationSec);
+    if (this.lipSync) {
+      this.lipSync.speakText(text, durationSec);
+    } else {
+      this.viseme?.speak(text, durationSec);
+    }
   }
 
   stopVisemes(): void {
-    this.viseme?.stop();
+    if (this.lipSync) {
+      this.lipSync.stopText();
+    } else {
+      this.viseme?.stop();
+    }
   }
 }

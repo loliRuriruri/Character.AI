@@ -47,6 +47,7 @@ function stopAudio(): void {
   audioContextPlayer.stop();
   audioQueue.length = 0;
   isQueuePlaying = false;
+  stage.stopVisemes();
   stage.setSpeaking(false);
   if (currentAudio) {
     currentAudio.onended = null;
