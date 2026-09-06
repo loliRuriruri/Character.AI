@@ -14,9 +14,11 @@ export type MotionEventType =
   | "tts:end"
   | "llm:done";
 
+import type { EmotionName, GestureName } from "../shared/types";
+
 export interface MotionIntentData {
-  emotion?: "neutral" | "happy" | "relaxed" | "sad" | "angry" | "surprised";
-  gesture?: "none" | "nod" | "wave" | "explain" | "laugh" | "think";
+  emotion?: EmotionName;
+  gesture?: "none" | GestureName;
   intensity?: number;
 }
 

@@ -23,6 +23,24 @@ root.innerHTML = `
       </div>
     </div>
 
+    <!-- 1-2. VRMA Motion Switcher -->
+    <div class="section">
+      <div class="sec-title">
+        <span>💃 3D 모션 (VRMA) 변경</span>
+        <button id="btn-browse-vrma" class="btn-file" type="button">📂 내 PC에서 VRMA 파일 불러오기</button>
+      </div>
+      <label>기본 모션 (대기/포즈) 선택
+        <select id="vrmaMotionSelect"></select>
+      </label>
+      <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
+        <button id="btn-preview-vrma" type="button" style="flex:1;">▶ 모션 즉시 재생 / 미리보기</button>
+        <button id="btn-apply-idle-vrma" class="btn-primary" type="button" style="flex:1;">🔄 기본 대기 모션으로 적용</button>
+      </div>
+      <div style="font-size:10px; color:#8aa8b0; line-height:1.4;">
+        * BOOTH 또는 VRoid에서 다운로드한 <b>.vrma</b> 파일을 불러오면 캐릭터의 기본 자세나 동작을 원하는 모션으로 자유롭게 변경할 수 있습니다!
+      </div>
+    </div>
+
     
     <!-- Mode Selection -->
     <div class="section">
@@ -30,9 +48,27 @@ root.innerHTML = `
       <label>기본 모드
         <select id="chatModeSelect">
           <option value="free">🗣️ 일상 대화 모드 (버추얼 싱어 미쿠)</option>
+          <option value="rp">🎭 롤플레잉 / RP 모드 (행동 서술 *...* 및 3D 제스처 연동)</option>
           <option value="tutor">📚 일본어/외국어 튜터 모드 (실시간 문법 교정 & 단어 수집)</option>
         </select>
       </label>
+    </div>
+
+    <!-- User Persona & Relationship Settings -->
+    <div class="section">
+      <div class="sec-title"><span>👤 사용자 페르소나 & 호칭 설정</span></div>
+      <label>사용자 이름 / 닉네임
+        <input id="userNameInput" placeholder="마스터" />
+      </label>
+      <label>미쿠가 나를 부르는 호칭
+        <input id="callNameInput" placeholder="마스터 (예: 선배, 오빠, 마스터)" />
+      </label>
+      <label>캐릭터와의 관계 설정
+        <input id="relationshipInput" placeholder="서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너" />
+      </label>
+      <div style="font-size:10px; color:#8aa8b0; line-height:1.4;">
+        * 페르소나를 변경하면 미쿠가 호칭과 관계를 기억하여 그에 맞게 말투와 행동을 맞춰줍니다!
+      </div>
     </div>
 
     <!-- 2. AI LLM Provider -->
@@ -190,6 +226,10 @@ root.innerHTML = `
 const closeBtn = document.getElementById("btn-close")!;
 const browseVrmBtn = document.getElementById("btn-browse-vrm")!;
 const vrmSelect = document.getElementById("vrmModelSelect") as HTMLSelectElement;
+const browseVrmaBtn = document.getElementById("btn-browse-vrma")!;
+const vrmaSelect = document.getElementById("vrmaMotionSelect") as HTMLSelectElement;
+const btnPreviewVrma = document.getElementById("btn-preview-vrma") as HTMLButtonElement;
+const btnApplyIdleVrma = document.getElementById("btn-apply-idle-vrma") as HTMLButtonElement;
 const providerSel = document.getElementById("provider") as HTMLSelectElement;
 const geminiFields = document.getElementById("gemini-fields")!;
 const geminiApiKeyInput = document.getElementById("geminiApiKey") as HTMLInputElement;
@@ -199,6 +239,9 @@ const ollamaModelSelect = document.getElementById("ollamaModelSelect") as HTMLSe
 const ttsSel = document.getElementById("tts") as HTMLSelectElement;
 const ttsProvSel = document.getElementById("ttsProvider") as HTMLSelectElement;
 const chatModeSelect = document.getElementById("chatModeSelect") as HTMLSelectElement;
+const userNameInput = document.getElementById("userNameInput") as HTMLInputElement;
+const callNameInput = document.getElementById("callNameInput") as HTMLInputElement;
+const relationshipInput = document.getElementById("relationshipInput") as HTMLInputElement;
 const voiceSel = document.getElementById("ttsVoiceId") as HTMLSelectElement;
 const scaleInput = document.getElementById("characterScale") as HTMLInputElement;
 const scaleVal = document.getElementById("scaleVal")!;
@@ -208,6 +251,7 @@ const saveBtn = document.getElementById("btn-save")!;
 
 let localSettings: AppSettings | null = null;
 let installedVrmList: string[] = [];
+let installedVrmaList: string[] = [];
 
 closeBtn.addEventListener("click", () => {
   const k = fishApiKeyInput?.value.trim();
@@ -227,6 +271,31 @@ vrmSelect.addEventListener("change", () => {
   const chosen = vrmSelect.value;
   if (chosen) {
     window.miku.send(Ipc.LOAD_VRM_MODEL, chosen);
+  }
+});
+
+browseVrmaBtn.addEventListener("click", () => {
+  window.miku.send(Ipc.SELECT_VRMA_FILE);
+});
+
+btnPreviewVrma.addEventListener("click", () => {
+  const chosen = vrmaSelect.value;
+  if (chosen) {
+    window.miku.send(Ipc.PREVIEW_VRMA_MOTION, chosen);
+  }
+});
+
+btnApplyIdleVrma.addEventListener("click", () => {
+  const chosen = vrmaSelect.value;
+  if (chosen) {
+    window.miku.send(Ipc.LOAD_VRMA_MOTION, chosen);
+  }
+});
+
+vrmaSelect.addEventListener("change", () => {
+  const chosen = vrmaSelect.value;
+  if (chosen) {
+    window.miku.send(Ipc.LOAD_VRMA_MOTION, chosen);
   }
 });
 
@@ -422,7 +491,11 @@ saveBtn.addEventListener("click", () => {
     ttsVoiceId: voiceSel.value,
     characterScale: parseFloat(scaleInput.value),
     vrmModelPath: vrmSelect.value || localSettings.vrmModelPath,
+    vrmaMotionPath: vrmaSelect.value || localSettings.vrmaMotionPath,
     chatMode: chatModeSelect.value as any,
+    userName: userNameInput ? userNameInput.value.trim() : "마스터",
+    callName: callNameInput ? callNameInput.value.trim() : "마스터",
+    relationship: relationshipInput ? relationshipInput.value.trim() : "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",
     fishApiKey: fishApiKeyInput ? fishApiKeyInput.value.trim() : "",
     fishVoiceId: fishVoiceIdInput ? fishVoiceIdInput.value.trim() : "",
     fishLatency: (fishLatencySelect ? fishLatencySelect.value : "low") as any,
@@ -435,6 +508,13 @@ window.miku.on(Ipc.VRM_MODELS_LIST, (models: unknown) => {
   if (Array.isArray(models)) {
     installedVrmList = models as string[];
     populateVrmModels(installedVrmList, localSettings?.vrmModelPath || "");
+  }
+});
+
+window.miku.on(Ipc.VRMA_MOTIONS_LIST, (motions: unknown) => {
+  if (Array.isArray(motions)) {
+    installedVrmaList = motions as string[];
+    populateVrmaMotions(installedVrmaList, localSettings?.vrmaMotionPath || "/models/idle_loop.vrma");
   }
 });
 
@@ -466,6 +546,9 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
   scaleInput.value = String(state.settings.characterScale || 1.0);
   scaleVal.textContent = (state.settings.characterScale || 1.0).toFixed(2) + "x";
   if (chatModeSelect) chatModeSelect.value = state.settings.chatMode || "free";
+  if (userNameInput) userNameInput.value = state.settings.userName || "마스터";
+  if (callNameInput) callNameInput.value = state.settings.callName || "마스터";
+  if (relationshipInput) relationshipInput.value = state.settings.relationship || "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너";
   if (fishApiKeyInput) fishApiKeyInput.value = state.settings.fishApiKey || "";
   if (fishVoiceIdInput) fishVoiceIdInput.value = state.settings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
   if (fishLatencySelect) fishLatencySelect.value = state.settings.fishLatency || "low";
@@ -473,6 +556,7 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
     updateKeyHint();
 
   populateVrmModels(installedVrmList, state.settings.vrmModelPath);
+  populateVrmaMotions(installedVrmaList, state.settings.vrmaMotionPath || "/models/idle_loop.vrma");
 });
 
 const btnPreviewVoice = document.getElementById("btn-preview-voice") as HTMLButtonElement;
@@ -570,6 +654,39 @@ function populateVrmModels(models: string[], currentPath: string): void {
       opt.selected = true;
     }
     vrmSelect.appendChild(opt);
+  }
+}
+
+function formatVrmaDisplayName(pathStr: string): string {
+  const file = pathStr.replace(/^.*[\\\/]/, "");
+  const lower = file.toLowerCase();
+  if (lower.includes("idle_loop")) return "🧘 기본 자연스러운 대기 (idle_loop.vrma)";
+  if (lower.includes("vrma_01")) return "✨ 공식 VRMA_01 전신 쇼케이스 (Show full body)";
+  if (lower.includes("vrma_02")) return "👋 공식 VRMA_02 정중한 인사 (Greeting / Bow)";
+  if (lower.includes("vrma_03")) return "✌️ 공식 VRMA_03 브이 사인 (Peace sign)";
+  if (lower.includes("vrma_04")) return "👉 공식 VRMA_04 손총 빵야 (Shoot)";
+  if (lower.includes("vrma_05")) return "💫 공식 VRMA_05 360도 스핀 회전 (Spin)";
+  if (lower.includes("vrma_06")) return "💃 공식 VRMA_06 모델 포즈 (Model pose)";
+  if (lower.includes("vrma_07")) return "🧎 공식 VRMA_07 앉기/스쿼트 (Squat)";
+  if (lower.includes("wave")) return "👋 손 흔들기 (Wave)";
+  if (lower.includes("laugh")) return "😄 웃음/기쁨 (Laugh)";
+  if (lower.includes("nod")) return "🙆 고개 끄덕임 (Nod)";
+  if (lower.includes("think")) return "🤔 생각하기 (Think)";
+  if (lower.includes("explain")) return "📖 설명하기 (Explain)";
+  return "🎬 " + file;
+}
+
+function populateVrmaMotions(motions: string[], currentPath: string): void {
+  if (!vrmaSelect) return;
+  vrmaSelect.innerHTML = "";
+  for (const m of motions) {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = formatVrmaDisplayName(m);
+    if (m === currentPath || m.replace(/^.*[\\\/]/, "") === currentPath.replace(/^.*[\\\/]/, "")) {
+      opt.selected = true;
+    }
+    vrmaSelect.appendChild(opt);
   }
 }
 

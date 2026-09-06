@@ -1,7 +1,7 @@
 import "./overlay.css";
 import { Ipc } from "../shared/ipc";
 import { stripEmotionTags } from "../shared/emotion";
-import type { AppSettings, TtsStatus, GestureName, SrsCard, ChatMode, EmotionName } from "../shared/types";
+import type { AppSettings, TtsStatus, GestureName, SrsCard, ChatMode, EmotionName, ProviderHealthStatus } from "../shared/types";
 
 const root = document.getElementById("root")!;
 root.innerHTML = `
@@ -12,9 +12,10 @@ root.innerHTML = `
       <span class="brand-title">✨ AI 캐릭터챗</span>
     </div>
 
-    <!-- Mode Tabs: Only 2 Buttons (대화 / 튜터) -->
+    <!-- Mode Tabs: 3 Buttons (대화 / RP / 튜터) -->
     <div class="mode-tabs no-drag">
       <button id="tab-free" type="button" class="tab-btn active" title="일상 자유 대화 모드">🗣️ 대화</button>
+      <button id="tab-rp" type="button" class="tab-btn" title="행동 서술 및 롤플레잉 모드">🎭 RP</button>
       <button id="tab-tutor" type="button" class="tab-btn" title="일본어/외국어 문법 및 표현 교정 튜터 모드">📚 튜터</button>
     </div>
 
@@ -193,6 +194,7 @@ const btnHide = document.getElementById("btn-hide") as HTMLButtonElement;
 
 // Mode Tabs & Drawer Controls
 const tabFree = document.getElementById("tab-free") as HTMLButtonElement;
+const tabRp = document.getElementById("tab-rp") as HTMLButtonElement;
 const tabTutor = document.getElementById("tab-tutor") as HTMLButtonElement;
 const tutorBar = document.getElementById("tutor-bar") as HTMLDivElement;
 const btnToggleGestures = document.getElementById("btn-toggle-gestures") as HTMLButtonElement;
@@ -462,10 +464,13 @@ function updateModelVoiceLabels(): void {
 }
 
 tabFree.addEventListener("click", () => {
-  if (currentMode !== "free") window.miku.send(Ipc.TOGGLE_CHAT_MODE);
+  if (currentMode !== "free") window.miku.send(Ipc.SET_CHAT_MODE, "free");
+});
+tabRp.addEventListener("click", () => {
+  if (currentMode !== "rp") window.miku.send(Ipc.SET_CHAT_MODE, "rp");
 });
 tabTutor.addEventListener("click", () => {
-  if (currentMode !== "tutor") window.miku.send(Ipc.TOGGLE_CHAT_MODE);
+  if (currentMode !== "tutor") window.miku.send(Ipc.SET_CHAT_MODE, "tutor");
 });
 
 btnMute.addEventListener("click", () => {
@@ -565,6 +570,17 @@ const tutorSuggestions = [
   "일본어 자연스러운 뉘앙스 차이 알려줘!",
 ];
 
+const rpSuggestions = [
+  "*살며시 다가가 손을 잡는다.* 미쿠, 오늘 하루 어땠어?",
+  "*공원 벤치에 나란히 앉으며* 오늘 날씨 진짜 좋다, 그렇지?",
+  "*파(Leek)를 건네며* 미쿠, 이거 받아줘!",
+  "*무대 뒤 대기실에서 긴장한 표정으로* 미쿠, 곧 라이브 시작이야!",
+  "*따뜻한 멜론빵을 나눠주며* 이거 미쿠 주려고 사 왔어.",
+  "*조용히 미쿠의 노랫소리에 귀를 기울인다.*",
+  "*미쿠 머리를 쓰다듬으며* 오늘도 열심히 해줘서 고마워.",
+  "*장난스럽게 눈을 깜빡이며* 미쿠, 빵야!",
+];
+
 btnToggleSug.addEventListener("click", () => {
   const isHidden = suggestionsBar.style.display === "none";
   suggestionsBar.style.display = isHidden ? "flex" : "none";
@@ -587,10 +603,14 @@ function updateSuggestions(mode: ChatMode): void {
 
   const sugLabel = document.querySelector(".sug-label");
   if (sugLabel) {
-    sugLabel.textContent = mode === "tutor" ? "🦉 듀오링고 회화 놀이 & 퀴즈 추천" : "💡 추천 대화 & 듀오링고 퀴즈";
+    sugLabel.textContent = mode === "tutor"
+      ? "🦉 듀오링고 회화 놀이 & 퀴즈 추천"
+      : mode === "rp"
+      ? "🎭 롤플레잉 & 상황극 추천 대사"
+      : "💡 추천 대화 & 듀오링고 퀴즈";
   }
 
-  const list = mode === "tutor" ? tutorSuggestions : freeSuggestions;
+  const list = mode === "tutor" ? tutorSuggestions : mode === "rp" ? rpSuggestions : freeSuggestions;
   const count = 3;
   const start = (suggestionOffset * count) % list.length;
   const selected: string[] = [];
@@ -610,13 +630,27 @@ function updateSuggestions(mode: ChatMode): void {
 }
 updateSuggestions("free");
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderBubbleHtml(text: string): string {
+  const clean = stripEmotionTags(text);
+  const formatted = formatChatText(clean);
+  const escaped = escapeHtml(formatted);
+  return escaped.replace(/\*([^*]+)\*/g, '<span class="action-prose">*$1*</span>');
+}
+
 function appendBubble(role: "user" | "assistant", text: string): HTMLDivElement {
   const b = document.createElement("div");
   b.className = "bubble " + role;
   
   const contentEl = document.createElement("div");
   contentEl.className = "bubble-text";
-  contentEl.textContent = text;
+  contentEl.innerHTML = renderBubbleHtml(text);
   b.appendChild(contentEl);
 
   if (role === "assistant") {
@@ -676,6 +710,8 @@ const gestureEmotionMap: Record<GestureName, EmotionName> = {
   explain: "relaxed",
   laugh: "happy",
   think: "relaxed",
+  shoot: "happy",
+  spin: "happy",
 };
 
 document.querySelectorAll(".gesture-btn").forEach((btn) => {
@@ -804,8 +840,8 @@ window.miku.on(Ipc.LLM_DELTA, (delta: unknown) => {
     errorEl.classList.remove("show");
   }
   const textEl = (currentBubble.querySelector(".bubble-text") as HTMLElement) || currentBubble;
-  const updated = (textEl.textContent ?? "") + d;
-  textEl.textContent = formatChatText(stripEmotionTags(updated));
+  (currentBubble as any).__rawText = ((currentBubble as any).__rawText || "") + d;
+  textEl.innerHTML = renderBubbleHtml((currentBubble as any).__rawText);
   logEl.scrollTop = logEl.scrollHeight;
 });
 
@@ -830,17 +866,56 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
     ttsStatus: TtsStatus;
     isThinking?: boolean;
     cardsDueCount?: number;
+    providerHealth?: ProviderHealthStatus;
+    providerHealthMessage?: string | null;
   };
 
   if (btnMute && state.settings) {
     btnMute.textContent = state.settings.ttsEnabled ? "🔊" : "🔇";
     btnMute.title = state.settings.ttsEnabled ? "음소거 켜기" : "음소거 해제";
   }
-  if (state.lastError) {
-    errorEl.textContent = state.lastError;
+
+  const displayErr = state.lastError || (state.providerHealth && state.providerHealth !== "HEALTHY" ? state.providerHealthMessage : null);
+  if (displayErr) {
+    errorEl.innerHTML = "";
+    const msgSpan = document.createElement("span");
+    msgSpan.className = "error-text";
+    msgSpan.textContent = displayErr;
+    errorEl.appendChild(msgSpan);
+
+    if (state.providerHealth === "OFFLINE" || state.providerHealth === "RECONNECTING") {
+      const btnGroup = document.createElement("div");
+      btnGroup.className = "error-btn-group";
+
+      const btnReconnect = document.createElement("button");
+      btnReconnect.type = "button";
+      btnReconnect.className = "retry-btn";
+      btnReconnect.textContent = "🔄 다시 연결";
+      btnReconnect.title = "로컬 AI (Ollama) 연결 상태 즉시 재확인";
+      btnReconnect.onclick = (e) => {
+        e.stopPropagation();
+        btnReconnect.textContent = "🔄 확인 중…";
+        window.miku.send(Ipc.RECHECK_PROVIDER);
+      };
+      btnGroup.appendChild(btnReconnect);
+
+      const btnSettings = document.createElement("button");
+      btnSettings.type = "button";
+      btnSettings.className = "retry-btn";
+      btnSettings.textContent = "⚙️ 설정";
+      btnSettings.title = "연결 및 모델 설정 열기";
+      btnSettings.onclick = (e) => {
+        e.stopPropagation();
+        window.miku.send(Ipc.OPEN_SETTINGS);
+      };
+      btnGroup.appendChild(btnSettings);
+
+      errorEl.appendChild(btnGroup);
+    }
     errorEl.classList.add("show");
   } else {
     errorEl.classList.remove("show");
+    errorEl.innerHTML = "";
   }
 
   if (state.ttsStatus === "loading") {
@@ -861,9 +936,14 @@ window.miku.on(Ipc.STATE_SYNC, (s: unknown) => {
     currentAppSettings = state.settings;
     currentMode = state.settings.chatMode;
     tabFree.classList.toggle("active", currentMode === "free");
+    tabRp.classList.toggle("active", currentMode === "rp");
     tabTutor.classList.toggle("active", currentMode === "tutor");
     tutorBar.style.display = currentMode === "tutor" ? "flex" : "none";
-    inputEl.placeholder = currentMode === "tutor" ? "일본어로 말하거나 외국어 질문하기… (Enter 전송, PTT)" : "미쿠에게 말하기… (Enter 전송, Shift+Enter 줄바꿈)";
+    inputEl.placeholder = currentMode === "tutor"
+      ? "일본어로 말하거나 외국어 질문하기… (Enter 전송, PTT)"
+      : currentMode === "rp"
+      ? "미쿠와 상황극/롤플레잉하기… (*행동 서술* 대사)"
+      : "미쿠에게 말하기… (Enter 전송, Shift+Enter 줄바꿈)";
     updateSuggestions(currentMode);
 
     // Sync select dropdowns

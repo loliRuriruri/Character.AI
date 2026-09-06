@@ -10,6 +10,20 @@ import { MOTION_CONFIG } from "./motionConfig";
 import { clearMixamoClipCache } from "./loadMixamoAnimation";
 import type { EmotionName, GestureName, ViewMode } from "../shared/types";
 
+export function resolveAssetUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:") || url.startsWith("data:")) {
+    return url;
+  }
+  if (/^[a-zA-Z]:[\\\/]/.test(url)) {
+    return "file:///" + url.replace(/\\/g, "/");
+  }
+  if (window.location.protocol === "file:" && url.startsWith("/")) {
+    return "." + url;
+  }
+  return url;
+}
+
 export class VrmStage {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -25,6 +39,13 @@ export class VrmStage {
   private pointer = new THREE.Vector2();
   private running = true;
   private currentScale = 1.0;
+  private dragPlane: THREE.Plane | null = null;
+  private dragPlaneOffset = new THREE.Vector3();
+  private dragIntersection = new THREE.Vector3();
+  private dragInitialDepthZ = 0;
+  private isDraggingModel = false;
+  public currentVrmUrl: string = "./models/HatsuneMikuNT.vrm";
+  public currentIdleUrl: string = "./models/idle_loop.vrma";
 
   // Direct morph targets references on Body.baked(copy) mesh
   private skinnedMeshes: THREE.SkinnedMesh[] = [];
@@ -77,6 +98,10 @@ export class VrmStage {
   }
 
   async load(modelUrl: string, idleUrl?: string): Promise<void> {
+    this.currentVrmUrl = modelUrl;
+    if (idleUrl) this.currentIdleUrl = idleUrl;
+    const resolvedIdleUrl = idleUrl || this.currentIdleUrl;
+
     if (this.vrm) {
       this.scene.remove(this.vrm.scene);
       VRMUtils.deepDispose(this.vrm.scene);
@@ -93,7 +118,7 @@ export class VrmStage {
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
 
-    const gltf = await loader.loadAsync(modelUrl);
+    const gltf = await loader.loadAsync(resolveAssetUrl(modelUrl));
     const vrm = gltf.userData.vrm as VRM;
     VRMUtils.removeUnnecessaryVertices(gltf.scene);
     VRMUtils.rotateVRM0(vrm);
@@ -137,9 +162,9 @@ export class VrmStage {
 
     // Load idle VRMA mocap animation clip if provided
     let idleClip: THREE.AnimationClip | null = null;
-    if (idleUrl) {
+    if (resolvedIdleUrl) {
       try {
-        const vrmaGltf = await loader.loadAsync(idleUrl);
+        const vrmaGltf = await loader.loadAsync(resolveAssetUrl(resolvedIdleUrl));
         const vrmAnimations = (vrmaGltf.userData.vrmAnimations ?? [vrmaGltf.userData.vrmAnimation]) as VRMAnimation[];
         if (vrmAnimations && vrmAnimations[0]) {
           if (vrm.lookAt) {
@@ -199,6 +224,57 @@ export class VrmStage {
     }
   }
 
+  async loadIdleMotion(vrmaUrl: string): Promise<void> {
+    if (!this.vrm) return;
+    this.currentIdleUrl = vrmaUrl;
+    try {
+      const loader = new GLTFLoader();
+      loader.register((parser: any) => new VRMAnimationLoaderPlugin(parser));
+      const vrmaGltf = await loader.loadAsync(resolveAssetUrl(vrmaUrl));
+      const vrmAnimations = (vrmaGltf.userData.vrmAnimations ?? [vrmaGltf.userData.vrmAnimation]) as VRMAnimation[];
+      if (vrmAnimations && vrmAnimations[0]) {
+        if (this.vrm.lookAt && !this.vrm.scene.getObjectByName("VRMLookAtQuaternionProxy")) {
+          const proxy = new VRMLookAtQuaternionProxy(this.vrm.lookAt);
+          proxy.name = "VRMLookAtQuaternionProxy";
+          this.vrm.scene.add(proxy);
+        }
+        const rawClip = createVRMAnimationClip(vrmAnimations[0], this.vrm);
+        const cleanTracks = rawClip.tracks.filter((t) => !t.name.endsWith(".position"));
+        const clip = new THREE.AnimationClip(rawClip.name, rawClip.duration, cleanTracks);
+        this.motion?.setIdleClip(clip);
+        console.log("[VRM] Updated idle motion live:", vrmaUrl, "duration:", clip.duration);
+      }
+    } catch (err) {
+      console.warn("[VRM] Failed to update idle motion:", err);
+      throw err;
+    }
+  }
+
+  async previewVrmaMotion(vrmaUrl: string): Promise<void> {
+    if (!this.vrm) return;
+    try {
+      const loader = new GLTFLoader();
+      loader.register((parser: any) => new VRMAnimationLoaderPlugin(parser));
+      const vrmaGltf = await loader.loadAsync(resolveAssetUrl(vrmaUrl));
+      const vrmAnimations = (vrmaGltf.userData.vrmAnimations ?? [vrmaGltf.userData.vrmAnimation]) as VRMAnimation[];
+      if (vrmAnimations && vrmAnimations[0]) {
+        if (this.vrm.lookAt && !this.vrm.scene.getObjectByName("VRMLookAtQuaternionProxy")) {
+          const proxy = new VRMLookAtQuaternionProxy(this.vrm.lookAt);
+          proxy.name = "VRMLookAtQuaternionProxy";
+          this.vrm.scene.add(proxy);
+        }
+        const rawClip = createVRMAnimationClip(vrmAnimations[0], this.vrm);
+        const cleanTracks = rawClip.tracks.filter((t) => !t.name.endsWith(".position"));
+        const clip = new THREE.AnimationClip(rawClip.name, rawClip.duration, cleanTracks);
+        this.motion?.playCustomVrmaClip(clip);
+        console.log("[VRM] Previewing VRMA motion live:", vrmaUrl, "duration:", clip.duration);
+      }
+    } catch (err) {
+      console.warn("[VRM] Failed to preview VRMA motion:", err);
+      throw err;
+    }
+  }
+
   private frameModel(vrm: VRM): void {
     vrm.scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(vrm.scene);
@@ -220,10 +296,11 @@ export class VrmStage {
       this.camera.position.set(0, lookY, dist);
       this.camera.lookAt(0, lookY, 0);
     } else {
-      // Full Body Mode (Fit head to toe)
-      const margin = 1.18;
-      const distH = (size.y * margin) / (2 * Math.tan(fovRad / 2));
-      const distW = (size.x * margin) / (2 * Math.tan(fovRad / 2) * Math.max(0.5, this.camera.aspect));
+      // Full Body Mode (Fit head to toe + ample horizontal margin for dynamic twintail physics)
+      const marginH = 1.18;
+      const marginW = 1.42;
+      const distH = (size.y * marginH) / (2 * Math.tan(fovRad / 2));
+      const distW = (size.x * marginW) / (2 * Math.tan(fovRad / 2) * Math.max(0.5, this.camera.aspect));
       const dist = Math.max(distH, distW);
       const lookY = center.y * 0.95;
       this.camera.position.set(0, lookY, dist);
@@ -250,8 +327,7 @@ export class VrmStage {
       if (MOTION_CONFIG.MOTION_V2) {
         // =========================================================================
         // CANONICAL V2 FRAME LOOP (Strict Contract)
-        // 1) director.tick(dt) & 2) mixer.update(dt) & 3) procedural.apply(dt)
-        // =========================================================================
+        // 1) controller & director update
         this.motion?.update(dt);
 
         // 4) lookAt.target 설정 (Gaze target position and saccades)
@@ -380,20 +456,33 @@ export class VrmStage {
     if (!el) {
       el = document.createElement("div");
       el.id = "motion-debug-hud";
+      el.title = "우클릭하여 상태창 닫기";
       el.style.position = "fixed";
-      el.style.top = "12px";
-      el.style.left = "12px";
-      el.style.padding = "8px 12px";
-      el.style.background = "rgba(15, 23, 42, 0.88)";
-      el.style.border = "1px solid rgba(56, 189, 248, 0.4)";
-      el.style.borderRadius = "6px";
+      el.style.top = "8px";
+      el.style.left = "50%";
+      el.style.transform = "translateX(-50%)";
+      el.style.padding = "4px 8px";
+      el.style.background = "rgba(15, 23, 42, 0.45)"; // 반투명화
+      el.style.border = "1px solid rgba(56, 189, 248, 0.25)";
+      el.style.borderRadius = "5px";
       el.style.color = "#f8fafc";
-      el.style.font = "11px/1.4 ui-monospace, monospace";
+      el.style.font = "8.5px/1.25 ui-monospace, monospace"; // 50% 컴팩트 크기
       el.style.zIndex = "9999";
-      el.style.pointerEvents = "none";
-      el.style.backdropFilter = "blur(6px)";
-      el.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4)";
-      document.body.appendChild(el);
+      el.style.pointerEvents = "auto"; // 클릭/우클릭 허용
+      el.style.cursor = "pointer";
+      el.style.backdropFilter = "blur(8px)";
+      el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+      el.style.userSelect = "none";
+      el.style.transition = "opacity 0.2s ease";
+
+      const hud = el;
+      hud.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        hud.style.display = "none";
+      });
+
+      document.body.appendChild(hud);
     }
     this.debugHudEl = el;
   }
@@ -416,7 +505,7 @@ export class VrmStage {
         }
       }
       activeList.sort((a, b) => b.weight - a.weight);
-      topExpressions = activeList.slice(0, 5).map((x) => `${x.name}: ${x.weight.toFixed(2)}`);
+      topExpressions = activeList.slice(0, 4).map((x) => `${x.name}:${x.weight.toFixed(2)}`);
     }
 
     const convStateStr = status?.convState ?? (status?.isSpeaking ? "speaking" : "idle");
@@ -425,11 +514,14 @@ export class VrmStage {
     const dtMs = (dt * 1000).toFixed(1);
 
     this.debugHudEl.innerHTML = `
-      <div style="font-weight: bold; color: #38bdf8; margin-bottom: 2px;">MOTION V2 HUD (Active)</div>
-      <div>ConvState: <span style="color:#4ade80; font-weight:bold;">${convStateStr}</span> | Gesture: <span>${clipStr}</span></div>
-      <div>CD: <span>${cdStr}</span> | dt: <span>${dtMs}ms</span> | vrm.update: <span style="color:#facc15;">#${this.vrmUpdateCounter}</span></div>
-      <div style="margin-top: 4px; font-size: 10px; color: #94a3b8;">Top Expressions:</div>
-      <div style="font-size: 10px; color: #e2e8f0;">${topExpressions.length > 0 ? topExpressions.join(", ") : "none (weight 0)"}</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px;">
+        <span style="font-weight: bold; color: #38bdf8; font-size: 8px;">MOTION V2 HUD (Active)</span>
+        <span style="font-size: 7px; color: #64748b;">(우클릭 닫기)</span>
+      </div>
+      <div><span style="color:#4ade80; font-weight:bold;">${convStateStr}</span> | <span style="color:#38bdf8;">${clipStr}</span> | CD:<span>${cdStr}</span> | <span>${dtMs}ms</span> | <span style="color:#facc15;">#${this.vrmUpdateCounter}</span></div>
+      <div style="font-size: 7.5px; color: #94a3b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">
+        ${topExpressions.length > 0 ? topExpressions.join(", ") : "expr: none"}
+      </div>
     `.trim();
   }
 
@@ -442,13 +534,85 @@ export class VrmStage {
     return hits.length > 0;
   }
 
-  play(name: GestureName): void {
-    this.gestures?.play(name);
+  startDragPlane(clientX: number, clientY: number): boolean {
+    if (!this.vrm) return false;
+    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
+    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObject(this.vrm.scene, true);
+    if (hits.length === 0) return false;
+
+    this.isDraggingModel = true;
+    this.dragInitialDepthZ = this.vrm.scene.position.z;
+
+    // Fixed plane perpendicular to camera direction, coplanar with character position
+    const planeNormal = this.camera.getWorldDirection(new THREE.Vector3()).negate();
+    this.dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, this.vrm.scene.position);
+
+    if (this.raycaster.ray.intersectPlane(this.dragPlane, this.dragIntersection)) {
+      this.dragPlaneOffset.subVectors(this.vrm.scene.position, this.dragIntersection);
+    }
+    return true;
+  }
+
+  updateDragPlane(clientX: number, clientY: number, applyScenePosition: boolean = false): void {
+    if (!this.isDraggingModel || !this.vrm || !this.dragPlane) return;
+    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
+    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+
+    if (this.raycaster.ray.intersectPlane(this.dragPlane, this.dragIntersection)) {
+      if (applyScenePosition) {
+        const target = this.dragIntersection.clone().add(this.dragPlaneOffset);
+        this.vrm.scene.position.x = target.x;
+        this.vrm.scene.position.y = target.y;
+      }
+      // Strict depth Z preservation invariant
+      this.vrm.scene.position.z = this.dragInitialDepthZ;
+    }
+  }
+
+  endDragPlane(): void {
+    this.isDraggingModel = false;
+    this.dragPlane = null;
+  }
+
+  getDragDiagnostics(): Record<string, any> {
+    const vrmPos = this.vrm?.scene.position;
+    const vrmScale = this.vrm?.scene.scale;
+    const parent = this.vrm?.scene.parent;
+    const camPos = this.camera.position;
+    const camDist = this.vrm ? this.camera.position.distanceTo(this.vrm.scene.position) : 0;
+
+    return {
+      vrmPosition: vrmPos ? { x: Number(vrmPos.x.toFixed(4)), y: Number(vrmPos.y.toFixed(4)), z: Number(vrmPos.z.toFixed(4)) } : null,
+      vrmScale: vrmScale ? { x: Number(vrmScale.x.toFixed(4)), y: Number(vrmScale.y.toFixed(4)), z: Number(vrmScale.z.toFixed(4)) } : null,
+      parentPosition: parent ? { x: Number(parent.position.x.toFixed(4)), y: Number(parent.position.y.toFixed(4)), z: Number(parent.position.z.toFixed(4)) } : null,
+      parentScale: parent ? { x: Number(parent.scale.x.toFixed(4)), y: Number(parent.scale.y.toFixed(4)), z: Number(parent.scale.z.toFixed(4)) } : null,
+      cameraPosition: { x: Number(camPos.x.toFixed(4)), y: Number(camPos.y.toFixed(4)), z: Number(camPos.z.toFixed(4)) },
+      cameraZoom: this.camera.zoom,
+      cameraFov: this.camera.fov,
+      cameraDistance: Number(camDist.toFixed(4)),
+      orbitControlsTarget: null, // Isolated; not attached to character window
+      viewport: {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        devicePixelRatio: Number(window.devicePixelRatio.toFixed(4)),
+      },
+    };
+  }
+
+  play(name: GestureName, timing?: { spanCompleteTime?: number; gestureEmitTime?: number; segmentId?: string; expiresAt?: number }): void {
+    this.gestures?.play(name, timing);
     if (name === "thinking") {
       this.look?.setThinking(true);
     } else if (name !== "idle") {
       this.look?.setThinking(false);
     }
+  }
+
+  notifySegmentEnded(segmentId: string): void {
+    this.gestures?.notifySegmentEnded(segmentId);
   }
 
   setSpeaking(speaking: boolean): void {
@@ -460,6 +624,7 @@ export class VrmStage {
   }
 
   setThinking(thinking: boolean): void {
+    this.gestures?.setConversationState(thinking ? "thinking" : "idle");
     this.look?.setThinking(thinking);
   }
 

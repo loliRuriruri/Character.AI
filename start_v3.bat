@@ -6,5 +6,5 @@ echo ========================================================
 echo   🎵 MikuChat v3 — High-Performance AI Companion
 echo ========================================================
 echo.
-echo [1/2] Starting Vite & Electron Overlay...
-node "node_modules/vite/bin/vite.js"
+echo [1/2] Starting MikuChat Desktop Companion...
+start "" "%~dp0node_modules\electron\dist\electron.exe" .

@@ -56,6 +56,12 @@ export function parseReaction(raw: string): AnalyzedReaction {
     } else if (rawTag === "proud" || rawTag === "뿌듯" || rawTag === "자랑") {
       emotion = "happy";
       gesture = "proud";
+    } else if (rawTag === "shoot" || rawTag === "빵야" || rawTag === "총") {
+      emotion = "happy";
+      gesture = "shoot";
+    } else if (rawTag === "spin" || rawTag === "회전" || rawTag === "턴") {
+      emotion = "happy";
+      gesture = "spin";
     }
   }
 
@@ -114,6 +120,16 @@ export function parseReaction(raw: string): AnalyzedReaction {
     // 10. Agreement (끄덕임)
     else if (/맞아|그렇지|응응|알겠어|네!|그럼그럼/i.test(clean)) {
       gesture = "nod";
+    }
+    // 11. Shoot (빵야, 손총)
+    else if (/빵야|손총|탕탕/i.test(clean)) {
+      gesture = "shoot";
+      if (emotion === "neutral") emotion = "happy";
+    }
+    // 12. Spin (한 바퀴, 빙글, 턴)
+    else if (/한 바퀴|돌아|빙글/i.test(clean)) {
+      gesture = "spin";
+      if (emotion === "neutral") emotion = "happy";
     }
   }
 

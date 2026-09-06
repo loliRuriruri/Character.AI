@@ -35,6 +35,14 @@ export function resolveWorkerScript(): string {
   return hit;
 }
 
+export function toWindowlessPython(pythonPath: string): string {
+  if (process.platform === "win32" && pythonPath) {
+    const pw = pythonPath.replace(/python\.exe$/i, "pythonw.exe");
+    if (fs.existsSync(pw)) return pw;
+  }
+  return pythonPath;
+}
+
 export function venvLooksPresent(pythonPath: string): boolean {
   return exists(pythonPath);
 }
@@ -168,7 +176,7 @@ export class VoxcpmTts {
       } else if (exists(promptFile)) {
         args.push("--prompt-file", promptFile);
       }
-      const proc = spawn(settings.voxcpmPythonPath, args, {
+      const proc = spawn(toWindowlessPython(settings.voxcpmPythonPath), args, {
         env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONIOENCODING: "utf-8" },
         windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],
@@ -371,7 +379,7 @@ export class IrodoriTts {
       if (!fs.existsSync(python)) return reject(new Error("Irodori python 경로를 찾을 수 없습니다: " + python));
       if (!fs.existsSync(worker)) return reject(new Error("irodori_worker.py 를 찾을 수 없습니다: " + worker));
 
-      const proc = spawn(python, ["-u", worker], {
+      const proc = spawn(toWindowlessPython(python), ["-u", worker], {
         cwd: irodoriRoot,
         env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONIOENCODING: "utf-8" },
         windowsHide: true,

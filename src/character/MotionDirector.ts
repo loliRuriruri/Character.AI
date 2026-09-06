@@ -15,18 +15,44 @@ export type ConvState = "idle" | "listening" | "thinking" | "speaking" | "afterg
 const GESTURE_MAX_DURATION = 5.0; // Conversational gesture length limit (VRMA native)
 const GESTURE_START_OFFSETS: Record<string, number> = {
   nod: 0.15,     // 0.15s dead pause skip -> immediate 1x nod
-  wave: 0.0,     // Native VRMA Greeting starting from natural posture
-  bow: 0.0,      // Native VRMA Greeting / Bow
+  wave: 1.10,    // 1.10s rest pause skip -> immediate right hand wave elevation
+  bow: 0.0,      // Standing bow
   explain: 0.0,  // Native VRMA Show full body
   laugh: 0.0,    // Native VRMA Peace sign
   think: 0.30,   // Hand to chin rise
   peace: 0.0,    // Native VRMA Peace sign
   proud: 0.0,    // Native VRMA Model pose
   cheer: 0.0,    // Native VRMA Show full body
+  shoot: 0.0,    // Native VRMA Shoot (빵야)
+  spin: 0.0,     // Native VRMA Spin (360도 회전)
 };
 
 const _scratchEuler = new THREE.Euler();
 const _scratchQuat = new THREE.Quaternion();
+
+export interface GestureTimingPayload {
+  spanCompleteTime?: number;
+  gestureEmitTime?: number;
+  segmentId?: string;
+  expiresAt?: number;
+}
+
+export class MotionLatencyTracker {
+  private static samples: number[] = [];
+
+  static record(metric: { spanToEmitMs: number; emitToStartMs: number; totalSpanToMotionMs: number; gesture: string }): void {
+    this.samples.push(metric.totalSpanToMotionMs);
+    if (this.samples.length > 100) this.samples.shift();
+
+    const sorted = [...this.samples].sort((a, b) => a - b);
+    const p50 = sorted[Math.floor(sorted.length * 0.5)];
+    const p95 = sorted[Math.floor(sorted.length * 0.95)];
+
+    console.log(
+      `[MotionLatency] '${metric.gesture}' started | span->emit: ${metric.spanToEmitMs.toFixed(1)}ms, emit->play: ${metric.emitToStartMs.toFixed(1)}ms, total: ${metric.totalSpanToMotionMs.toFixed(1)}ms | P50: ${p50.toFixed(1)}ms, P95: ${p95.toFixed(1)}ms (N=${this.samples.length})`
+    );
+  }
+}
 
 /**
  * MotionDirector — Warudo & ChatVRM style 4-Layer Motion Controller
@@ -70,10 +96,22 @@ export class MotionDirector {
   private speechIndex = 0;
   private readonly speechGestures: GestureName[] = ["talk", "nod", "curious"];
 
-  // Gesture repetition prevention & Cooldown system (Work Order: same 8s, global 2.5s)
+  // Gesture repetition prevention & Cooldown system
   private recentHistory: GestureName[] = [];
   private gestureCooldowns: Map<GestureName, number> = new Map();
   private globalCooldown = 0;
+
+  // Bounded gesture queue/scheduler for chaining valid gestures
+  private gestureQueue: Array<{
+    name: GestureName;
+    queuedAt: number;
+    timing?: GestureTimingPayload;
+    segmentId?: string;
+    expiresAt?: number;
+  }> = [];
+  private completedSegmentIds: Set<string> = new Set();
+  private readonly MAX_QUEUE_SIZE = 3;
+  private readonly QUEUE_ITEM_TTL_MS = 6000;
 
   // Diagnostics & Debug Controls (Work Order Section 4, 16)
   public proceduralEnabled = true;
@@ -188,6 +226,56 @@ export class MotionDirector {
       this.unsubscribeBus();
       this.unsubscribeBus = null;
     }
+  }
+
+  setIdleClip(idleClip: THREE.AnimationClip | null): void {
+    if (this.idleAction) {
+      this.idleAction.stop();
+      this.mixer.uncacheAction(this.idleAction.getClip());
+      this.idleAction = null;
+    }
+    if (idleClip) {
+      const fullIdleClip = this.padIdleClip(idleClip);
+      this.idleAction = this.mixer.clipAction(fullIdleClip);
+    } else {
+      const fallback = this.gestureClips.get("idle");
+      if (fallback) this.idleAction = this.mixer.clipAction(fallback);
+    }
+    if (this.idleAction) {
+      this.idleAction.reset();
+      this.idleAction.setEffectiveWeight(1.0);
+      this.idleAction.setLoop(THREE.LoopRepeat, Infinity);
+      this.idleAction.play();
+    }
+  }
+
+  playCustomVrmaClip(clip: THREE.AnimationClip, customDuration?: number): void {
+    if (this.fallbackTimer) {
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+
+    if (this.currentAction && this.currentAction !== this.idleAction) {
+      this.currentAction.fadeOut(0.2);
+    }
+
+    const padded = this.padIdleClip(clip);
+    const act = this.mixer.clipAction(padded);
+    act.reset();
+    act.setLoop(THREE.LoopOnce, 1);
+    act.clampWhenFinished = false;
+    act.fadeIn(0.3);
+    act.play();
+
+    this.currentAction = act;
+    this.currentGesture = "explain";
+    this.gestureTime = 0;
+    this.gestureDuration = customDuration || Math.min(6.0, clip.duration || 3.0);
+    this.isCrossFadingOut = false;
+
+    this.fallbackTimer = setTimeout(() => {
+      this.returnToIdle(0.4);
+    }, (this.gestureDuration + 0.1) * 1000);
   }
 
   private cacheBones(): void {
@@ -331,51 +419,68 @@ export class MotionDirector {
 
   /**
    * Play gesture layered over Base Idle:
-   * Base Idle is ALWAYS maintained at weight 1.0 in the mixer background,
-   * completely preventing any T-pose drops or momentary bind-pose flashes!
+   * Base Idle is ALWAYS maintained at weight 1.0 in the mixer background.
    */
-  play(name: GestureName, _fromIntent: boolean = false): void {
-    // Safe alias mapping: map legacy names to the 51-track Mixamo clips
-    const LEGACY_MAP: Record<string, GestureName> = {
+  play(
+    name: GestureName,
+    _fromIntent: boolean | GestureTimingPayload = false
+  ): void {
+    const timing = typeof _fromIntent === "object" ? _fromIntent : undefined;
+
+    // Safe spelling alias mapping only
+    const SPELLING_MAP: Record<string, GestureName> = {
       thinking: "think",
-      bow: "nod",
-      curious: "think",
-      giggle: "laugh",
-      proud: "explain",
-      sing: "wave",
-      cheer: "wave",
-      peace: "wave",
-      shy: "think",
-      talk: "explain",
     };
-    if (LEGACY_MAP[name as string]) {
-      name = LEGACY_MAP[name as string];
+    if (SPELLING_MAP[name as string]) {
+      name = SPELLING_MAP[name as string];
     }
 
-    if (this.knownGoodVrmaOnly || name === "idle") {
+    if (!name || this.knownGoodVrmaOnly || name === "idle") {
+      this.gestureQueue = [];
       this.returnToIdle(0.4);
       return;
     }
 
-    // Strict Cooldowns: Global 2.5s, Same gesture 8.0s (strictly unchanged)
-    if (this.globalCooldown > 0) {
-      return;
-    }
-    const cd = this.gestureCooldowns.get(name) ?? 0;
-    if (cd > 0) {
+    // Check same-gesture cooldown: prevent identical gesture rapid repetition
+    const sameGestureCooldown = this.gestureCooldowns.get(name) ?? 0;
+    if (sameGestureCooldown > 0 || this.currentGesture === name) {
       return;
     }
 
+    // If currently busy with a gesture or global cooldown is active, buffer into bounded queue
+    const isBusy = this.globalCooldown > 0 || (this.currentAction && this.currentGesture !== "idle" && !this.isCrossFadingOut);
+    if (isBusy) {
+      if (this.gestureQueue.length < this.MAX_QUEUE_SIZE && !this.gestureQueue.some(q => q.name === name)) {
+        this.gestureQueue.push({
+          name,
+          queuedAt: performance.now(),
+          timing,
+          segmentId: timing?.segmentId,
+          expiresAt: timing?.expiresAt,
+        });
+      }
+      return;
+    }
+
+    this.executeGesture(name, timing);
+  }
+
+  /**
+   * Directly activates AnimationAction with cross-fades, cooldown setup, and latency measurement
+   */
+  private executeGesture(name: GestureName, timing?: GestureTimingPayload): void {
     const targetAction = this.gestureActions.get(name);
     const clip = this.gestureClips.get(name);
-    if (!targetAction || !clip) return;
+    if (!targetAction || !clip) {
+      console.warn(`[MotionDirector] Warning: Gesture '${name}' has no registered AnimationAction or Clip!`);
+      return;
+    }
 
-    // Cross-fade out previous gesture if still active (NEVER action.stop()!)
+    // Cross-fade out previous gesture if still active
     if (this.currentAction) {
       if (this.currentAction !== targetAction) {
         this.currentAction.fadeOut(0.3);
       } else {
-        // Same gesture re-triggered while running: reset immediately
         this.currentAction.reset();
       }
     }
@@ -383,26 +488,40 @@ export class MotionDirector {
     this.currentGesture = name;
     this.gestureTime = 0;
     const startOffset = GESTURE_START_OFFSETS[name] ?? 0;
-    this.gestureDuration = Math.min(clip.duration - startOffset, GESTURE_MAX_DURATION);
+    const maxDur = (name === "spin" || name === "shoot") ? 10.0 : GESTURE_MAX_DURATION;
+    this.gestureDuration = Math.min(clip.duration - startOffset, maxDur);
     this.isCrossFadingOut = false;
 
-    // Record history & Set cooldowns (8.0s same gesture, 2.5s global)
+    // Record history & Set cooldowns (8.0s same gesture, 1.8s global queue interval)
     this.recentHistory.push(name);
     if (this.recentHistory.length > 5) this.recentHistory.shift();
     this.gestureCooldowns.set(name, 8.0);
-    this.globalCooldown = 2.5;
+    this.globalCooldown = 1.8;
 
-    // Strict mandated order (Correction 1):
-    targetAction.reset();                 // paused/enabled/time 복원
+    targetAction.reset();
     targetAction.time = startOffset;
-    targetAction.clampWhenFinished = true; // Rule 5: LoopOnce + clampWhenFinished = true
+    targetAction.clampWhenFinished = true;
     targetAction.setLoop(THREE.LoopOnce, 1);
-    targetAction.setEffectiveWeight(1);   // weight=1 명시 복원 (stopFading 포함)
+    targetAction.setEffectiveWeight(1);
     targetAction.play();
     if (this.idleAction) {
       this.idleAction.crossFadeTo(targetAction, 0.3, false);
     }
     this.currentAction = targetAction;
+
+    // Instrumentation: measure LLM span complete -> AnimationAction started (using Date.now() for unified cross-process epoch)
+    if (timing?.spanCompleteTime) {
+      const animationStartTime = Date.now();
+      const spanToEmitMs = (timing.gestureEmitTime ?? animationStartTime) - timing.spanCompleteTime;
+      const emitToStartMs = animationStartTime - (timing.gestureEmitTime ?? animationStartTime);
+      const totalSpanToMotionMs = animationStartTime - timing.spanCompleteTime;
+      MotionLatencyTracker.record({
+        spanToEmitMs,
+        emitToStartMs,
+        totalSpanToMotionMs,
+        gesture: name,
+      });
+    }
   }
 
   private returnToIdle(duration: number = 0.4): void {
@@ -423,6 +542,16 @@ export class MotionDirector {
     this.currentGesture = "idle";
   }
 
+  public notifySegmentEnded(segmentId: string): void {
+    if (!segmentId) return;
+    this.completedSegmentIds.add(segmentId);
+    if (this.completedSegmentIds.size > 50) {
+      const first = this.completedSegmentIds.values().next().value;
+      if (first) this.completedSegmentIds.delete(first);
+    }
+    this.gestureQueue = this.gestureQueue.filter((q) => q.segmentId !== segmentId);
+  }
+
   /**
    * Asynchronously load gesture clips (Official VRMA priority, with Mixamo FBX fallback)
    * Automatically extracts and retargets humanoid tracks via createVRMAnimationClip.
@@ -434,15 +563,17 @@ export class MotionDirector {
     }
 
     const list: { name: GestureName; file: string }[] = [
-      { name: "wave", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },     // Official VRoid Greeting
-      { name: "bow", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },      // Official VRoid Greeting / Bow
+      { name: "wave", file: "./vrma/mixamo/wave.fbx" },                  // Mixamo standing wave
       { name: "peace", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace sign
       { name: "laugh", file: "./VRMA_MotionPack/vrma/VRMA_03.vrma" },    // Official VRoid Peace / Happy
       { name: "explain", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },  // Official VRoid Show full body
       { name: "cheer", file: "./VRMA_MotionPack/vrma/VRMA_01.vrma" },    // Official VRoid Show full body
       { name: "proud", file: "./VRMA_MotionPack/vrma/VRMA_06.vrma" },    // Official VRoid Model pose
+      { name: "shoot", file: "./VRMA_MotionPack/vrma/VRMA_04.vrma" },    // Official VRoid Shoot (빵야 손총)
+      { name: "spin", file: "./VRMA_MotionPack/vrma/VRMA_05.vrma" },     // Official VRoid Spin (360도 회전)
       { name: "think", file: "./vrma/mixamo/think.fbx" },                // Mixamo Thinking pose
       { name: "nod", file: "./vrma/mixamo/nod.fbx" },                    // Mixamo subtle quick nod
+      { name: "bow", file: "./VRMA_MotionPack/vrma/VRMA_02.vrma" },      // Official VRoid Bow / Greeting (정중한 인사)
     ];
 
     for (const item of list) {
@@ -487,6 +618,33 @@ export class MotionDirector {
     // Decay global gesture interval cooldown
     if (this.globalCooldown > 0) {
       this.globalCooldown = Math.max(0, this.globalCooldown - delta);
+    }
+
+    // Process bounded gesture scheduler when ready for next transition
+    if (
+      this.gestureQueue.length > 0 &&
+      this.globalCooldown <= 0 &&
+      (!this.currentAction || this.currentGesture === "idle" || this.isCrossFadingOut)
+    ) {
+      const nowEpoch = Date.now();
+      while (this.gestureQueue.length > 0) {
+        const item = this.gestureQueue[0];
+        const isExpired = !!item.expiresAt && nowEpoch > item.expiresAt;
+        const isCompleted = !!item.segmentId && this.completedSegmentIds.has(item.segmentId);
+        const isLegacyTtl = !item.expiresAt && (performance.now() - item.queuedAt > this.QUEUE_ITEM_TTL_MS);
+        if (isExpired || isCompleted || isLegacyTtl) {
+          this.gestureQueue.shift();
+        } else {
+          break;
+        }
+      }
+      if (this.gestureQueue.length > 0) {
+        const next = this.gestureQueue.shift()!;
+        const sameCd = this.gestureCooldowns.get(next.name) ?? 0;
+        if (sameCd <= 0 && this.currentGesture !== next.name) {
+          this.executeGesture(next.name, next.timing);
+        }
+      }
     }
 
     // State machine afterglow timeout -> return to idle

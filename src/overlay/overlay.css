@@ -318,7 +318,7 @@ header button, header select, header input, .no-drag { -webkit-app-region: no-dr
 
 #error {
   flex-shrink: 0;
-  display: none; margin: 6px 10px; padding: 6px 10px;
+  display: none; margin: 6px 10px; padding: 7px 12px;
   background: rgba(255,107,138,0.15);
   border: 1px solid var(--err);
   color: var(--err);
@@ -326,7 +326,39 @@ header button, header select, header input, .no-drag { -webkit-app-region: no-dr
   white-space: pre-wrap;
   font-size: 11px;
 }
-#error.show { display: block; }
+#error.show {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.error-text {
+  flex: 1;
+  min-width: 140px;
+}
+.error-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.retry-btn {
+  background: rgba(57, 197, 187, 0.2);
+  border: 1px solid rgba(57, 197, 187, 0.45);
+  color: #e8fbff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.retry-btn:hover {
+  background: rgba(57, 197, 187, 0.35);
+  border-color: var(--miku);
+  color: #fff;
+}
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 /* Chat Area Container with Floating Background Status Indicator */

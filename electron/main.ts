@@ -4,14 +4,23 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Ipc } from "../src/shared/ipc";
-import { parseReaction } from "../src/shared/emotion";
-import { MIKU_FREE_PROMPT, MIKU_TUTOR_PROMPT } from "../src/shared/persona";
 import { SrsEngine } from "./srs";
 import { defaultSettings, type AppSettings, type AppState, type ChatMessage, type TtsStatus, type GestureName, type ViewMode } from "../src/shared/types";
 import { completeChat, LlmError } from "./llm";
 import { loadSettings, saveSettings } from "./settings";
-import { VoxcpmTts, IrodoriTts, FishAudioTts, type TtsPlay } from "./tts";
+import { VoxcpmTts, IrodoriTts, FishAudioTts, toWindowlessPython, type TtsPlay } from "./tts";
 import { applyVoiceSelection, loadVoiceCatalog, voiceById, resolveVoiceWav, addVoiceToCatalog } from "./voices";
+import { CharacterCore } from "../src/core/character/CharacterCore";
+import { PromptComposer } from "../src/core/prompt/PromptComposer";
+import { MemoryManager } from "../src/core/memory/MemoryManager";
+import { SceneStateManager } from "../src/core/memory/SceneStateManager";
+import { ResponseParser } from "../src/core/response/ResponseParser";
+import { ActionInterpreter } from "../src/core/response/ActionInterpreter";
+import { StreamingActionSpanBuffer } from "../src/core/response/StreamingActionSpanBuffer";
+import { sanitizeSpeechForTts, extractConversationalChunks } from "../src/core/response/TtsSanitizer";
+export { sanitizeSpeechForTts };
+import { resolveModelCapabilities } from "../src/core/model/ModelCapabilities";
+import { providerHealth } from "./providerHealth";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,9 +30,12 @@ let chatWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 
 let settings: AppSettings = { ...defaultSettings };
-let history: ChatMessage[] = [];
 let busy = false;
 let currentAbortController: AbortController | null = null;
+
+const characterCore = new CharacterCore();
+const sceneStateManager = new SceneStateManager();
+const memoryManager = new MemoryManager({ maxContextTokens: 4096 });
 
 const tts = new VoxcpmTts((status) => setTtsStatus(status));
 const srs = new SrsEngine();
@@ -44,6 +56,8 @@ const state: AppState = {
   viewMode: "full",
   isMuted: false,
   cardsDueCount: 0,
+  providerHealth: "HEALTHY",
+  providerHealthMessage: null,
 };
 
 function preloadPath(): string {
@@ -76,11 +90,12 @@ function setTtsStatus(status: TtsStatus): void {
   pushState();
 }
 
-function broadcastTtsPlay(play: TtsPlay): void {
+function broadcastTtsPlay(play: TtsPlay, segmentId?: string): void {
   if (!characterWin || characterWin.isDestroyed()) return;
-  if (play.kind === "wav") characterWin.webContents.send(Ipc.TTS_AUDIO, play);
-  else if (play.kind === "web") characterWin.webContents.send(Ipc.TTS_WEB, play);
-  else if (play.kind === "viseme") characterWin.webContents.send(Ipc.TTS_VISEME, play);
+  const payload = segmentId ? { ...play, segmentId } : play;
+  if (play.kind === "wav") characterWin.webContents.send(Ipc.TTS_AUDIO, payload);
+  else if (play.kind === "web") characterWin.webContents.send(Ipc.TTS_WEB, payload);
+  else if (play.kind === "viseme") characterWin.webContents.send(Ipc.TTS_VISEME, payload);
 }
 
 function transparentWinOpts(extra: Electron.BrowserWindowConstructorOptions): Electron.BrowserWindowConstructorOptions {
@@ -103,17 +118,21 @@ function transparentWinOpts(extra: Electron.BrowserWindowConstructorOptions): El
 
 function createCharacterWindow(): BrowserWindow {
   const wa = screen.getPrimaryDisplay().workArea;
-  const width = 340;
-  const height = 540;
+  const width = 440;
+  const height = 580;
   const x = wa.x + wa.width - width - 24;
   const y = wa.y + wa.height - height - 24;
   const win = new BrowserWindow(transparentWinOpts({
     width,
     height,
+    minWidth: width,
+    maxWidth: width,
+    minHeight: height,
+    maxHeight: height,
     x,
     y,
     alwaysOnTop: true,
-    resizable: true,
+    resizable: false,
     skipTaskbar: false,
   }));
   win.setBackgroundColor("#00000000");
@@ -133,7 +152,7 @@ function createChatWindow(): BrowserWindow {
   const wa = screen.getPrimaryDisplay().workArea;
   const width = 480;
   const height = 580;
-  const x = Math.max(20, wa.x + wa.width - width - 360);
+  const x = Math.max(20, wa.x + wa.width - width - 464);
   const y = wa.y + wa.height - height - 24;
   const win = new BrowserWindow(transparentWinOpts({
     width,
@@ -196,6 +215,7 @@ function openSettingsWindow(): void {
     pushState();
     broadcast(Ipc.VOICES_LIST, loadVoiceCatalog());
     broadcast(Ipc.VRM_MODELS_LIST, scanVrmModels());
+    broadcast(Ipc.VRMA_MOTIONS_LIST, scanVrmaMotions());
     void fetchOllamaModels().then((ms) => broadcast(Ipc.OLLAMA_MODELS_LIST, ms));
   });
 }
@@ -252,6 +272,42 @@ function scanVrmModels(): string[] {
     }
   }
   return models.length > 0 ? models : ["/models/HatsuneMikuNT.vrm"];
+}
+
+function scanVrmaMotions(): string[] {
+  const motions: string[] = [];
+  const searchDirs: { dir: string; prefix: string }[] = [
+    { dir: path.join(process.cwd(), "public", "models"), prefix: "/models/" },
+    { dir: path.join(process.cwd(), "dist", "models"), prefix: "/models/" },
+    { dir: path.join(process.cwd(), "public", "vrma"), prefix: "/vrma/" },
+    { dir: path.join(process.cwd(), "dist", "vrma"), prefix: "/vrma/" },
+    { dir: path.join(process.cwd(), "public", "VRMA_MotionPack", "vrma"), prefix: "/VRMA_MotionPack/vrma/" },
+    { dir: path.join(process.cwd(), "dist", "VRMA_MotionPack", "vrma"), prefix: "/VRMA_MotionPack/vrma/" },
+  ];
+
+  for (const { dir, prefix } of searchDirs) {
+    if (fs.existsSync(dir)) {
+      try {
+        const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".vrma"));
+        for (const f of files) {
+          const mPath = prefix + f;
+          if (!motions.includes(mPath)) motions.push(mPath);
+        }
+      } catch {}
+    }
+  }
+
+  const defaultMotion = "/models/idle_loop.vrma";
+  if (!motions.includes(defaultMotion)) {
+    motions.unshift(defaultMotion);
+  } else {
+    motions.sort((a, b) => {
+      if (a === defaultMotion) return -1;
+      if (b === defaultMotion) return 1;
+      return a.localeCompare(b);
+    });
+  }
+  return motions;
 }
 
 
@@ -350,65 +406,7 @@ function onPttStop(): void {
 }
 
 
-export function formatChatText(text: string): string {
-  let s = text;
-  // Exclamation & question marks followed by any non-whitespace
-  s = s.replace(/([!?])([^\s])/g, "$1 $2");
-  // Numbered choices glued to preceding text: e.g. 친구2. -> 친구\n2.
-  s = s.replace(/([가-힣a-zA-Z\)])(\d+[\.\)])/g, "$1\n$2");
-  // Space after numbered dot: 1.친구 -> 1. 친구
-  s = s.replace(/(\d+[\.\)])([^\s\d])/g, "$1 $2");
-  // Separate choice ending from prompt: 4. 노래정답을 -> 4. 노래\n정답을
-  s = s.replace(/(\d+\.\s*[가-힣a-zA-Z]+)(정답|골라|맞혀|도전)/g, "$1\n$2");
-  // Period followed by letter
-  s = s.replace(/([가-힣a-zA-Z\)])\.([가-힣a-zA-Z])/g, "$1. $2");
-  return s;
-}
 
-export function sanitizeSpeechForTts(text: string): string {
-  let s = formatChatText(text);
-  // Soften shouting/harsh interjections that cause TTS vocal strain/pitch spikes
-  s = s.replace(/와아!+/g, "와아~");
-  s = s.replace(/우와!+/g, "우와~");
-  s = s.replace(/앗!+/g, "앗,");
-  s = s.replace(/야호!+/g, "야호~");
-  s = s.replace(/대단해!+/g, "대단해~");
-  // Pronounce Japanese words with Korean parenthetical readings cleanly once: ともだち(토모다치) -> 토모다치
-  s = s.replace(/[\u3040-\u30ff\u4e00-\u9faf]+\s*\(([가-힣\s]+)\)/g, "$1");
-  // Reverse: 친구(ともだち) -> 친구
-  s = s.replace(/([가-힣]+)\s*\([\u3040-\u30ff\u4e00-\u9faf\s]+\)/g, "$1");
-  // Remove quotation marks that cause awkward glottal stops in TTS
-  s = s.replace(/['"`]/g, "");
-  // Numbered options read cleanly with pausing commas: 1. 친구 -> 1번, 친구.
-  s = s.replace(/(\d+)\.\s*([가-힣a-zA-Z]+)/g, "$1번, $2. ");
-  // Soften staccato laugh sounds
-  s = s.replace(/에헤헤+/g, "헤헤~");
-  s = s.replace(/헤헤헤+/g, "헤헤~");
-  s = s.replace(/아하하+/g, "하하~");
-  s = s.replace(/히히히+/g, "히히~");
-  s = s.replace(/크크크+/g, "후후~");
-  s = s.replace(/[ㅋㅎ]+/g, "");
-  return s.replace(/\s+/g, " ").trim();
-}
-
-function extractConversationalChunks(buf: string): { chunks: string[]; remaining: string } {
-  const formatted = formatChatText(buf);
-  const chunks: string[] = [];
-  // Split strictly on COMPLETE natural sentences (. ! ? \n) - Never split on commas or word middles!
-  const re = /([^.!?\n]+[.!?\n]+)/g;
-  let lastIdx = 0;
-  let m: RegExpExecArray | null;
-
-  while ((m = re.exec(formatted)) !== null) {
-    const s = m[0].trim();
-    if (s.length >= 2) {
-      chunks.push(s);
-      lastIdx = re.lastIndex;
-    }
-  }
-
-  return { chunks, remaining: formatted.slice(lastIdx) };
-}
 
 async function handleUserText(text: string, imageBase64?: string): Promise<void> {
   const clean = text.trim();
@@ -432,14 +430,41 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
 
   broadcast(Ipc.STOP_AUDIO);
 
-  const activePrompt = settings.chatMode === "tutor" ? MIKU_TUTOR_PROMPT : MIKU_FREE_PROMPT;
-  if (history.length === 0 || history[0].role !== "system" || history[0].content !== activePrompt) {
-    history = [{ role: "system", content: activePrompt }, ...history.filter(m => m.role !== "system")];
+  sceneStateManager.refreshTimePeriod();
+  sceneStateManager.processTurn(clean);
+  memoryManager.addMessage({ role: "user", content: clean, imageBase64 });
+
+  // Dynamic Context Window update
+  const caps = resolveModelCapabilities({
+    modelName: settings.provider === "gemini" ? settings.geminiModel : settings.model,
+    provider: settings.provider,
+  });
+  memoryManager.updateCapabilities(caps);
+
+  const systemPrompt = PromptComposer.composeSystemPrompt({
+    character: characterCore.getCharacter(),
+    persona: characterCore.getPersona(),
+    context: characterCore.getContext(),
+    sceneState: sceneStateManager.getState(),
+    memory: memoryManager.getMemory(),
+    mode: settings.chatMode,
+  });
+
+  if (memoryManager.shouldSummarize(systemPrompt)) {
+    memoryManager.applyFastPruning();
   }
-  history.push({ role: "user", content: clean, imageBase64 });
-  if (history.length > 16) {
-    history = [history[0], ...history.slice(-14)];
-  }
+
+  const promptMessages: ChatMessage[] = PromptComposer.composeChatMessages({
+    character: characterCore.getCharacter(),
+    persona: characterCore.getPersona(),
+    context: characterCore.getContext(),
+    sceneState: sceneStateManager.getState(),
+    memory: memoryManager.getMemory(),
+    mode: settings.chatMode,
+    authorNote: (settings as any).authorNote || undefined,
+    recentMessages: memoryManager.getRecentMessages(),
+    provider: settings.provider,
+  });
 
   let accumulated = "";
   let sentenceBuffer = "";
@@ -448,26 +473,69 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
   let isFirstAudioReported = false;
 
   const ttsPromiseQueue: Promise<void>[] = [];
+  const actionSpanBuffer = new StreamingActionSpanBuffer({ mode: settings.chatMode });
 
-  const queueSentenceForTts = (sentenceText: string) => {
-    const reaction = parseReaction(sentenceText);
-    if (!firstChunkHandled) {
-      firstChunkHandled = true;
-      state.emotion = reaction.emotion;
-      state.gesture = reaction.gesture;
-      broadcast(Ipc.EMOTION, reaction.emotion);
-      broadcast(Ipc.GESTURE, reaction.gesture);
+  const handleActionCues = (cues: string[], speechContext?: string) => {
+    if (cues.length === 0) return;
+    const extendedRequest = ActionInterpreter.interpret(cues, speechContext);
+    state.emotion = extendedRequest.emotion || "happy";
+    state.gesture = extendedRequest.gesture || "idle";
+    sceneStateManager.setEmotion(state.emotion);
+    broadcast(Ipc.EMOTION, state.emotion);
+    if (extendedRequest.gesture) {
+      const emitTime = Date.now();
+      const segmentId = "seg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      broadcast(Ipc.GESTURE, {
+        gesture: extendedRequest.gesture,
+        spanCompleteTime: emitTime,
+        gestureEmitTime: emitTime,
+        segmentId,
+        expiresAt: emitTime + 6000,
+      });
+    }
+    pushState();
+  };
+
+  const queueSentenceForTts = (sentenceText: string, spanCompleteTime?: number) => {
+    const spanTime = spanCompleteTime ?? Date.now();
+    const segmentId = "seg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    const expiresAt = Date.now() + Math.max(5000, sentenceText.length * 200 + 4000);
+    const parsed = ResponseParser.parse(sentenceText, { mode: settings.chatMode });
+
+    // 1. Action Cues 선제적 제스처/모션 트리거 (First-Motion Reaction)
+    if (parsed.actionCues.length > 0) {
+      handleActionCues(parsed.actionCues, parsed.speechText);
+    } else if (!firstChunkHandled) {
+      // 행동 서술이 없더라도 첫 문장 대사 키워드에서 감정/제스처 추론
+      const fallbackReq = ActionInterpreter.interpret([], parsed.speechText);
+      state.emotion = fallbackReq.emotion || "neutral";
+      state.gesture = fallbackReq.gesture || "idle";
+      sceneStateManager.setEmotion(state.emotion);
+      broadcast(Ipc.EMOTION, state.emotion);
+      if (fallbackReq.gesture) {
+        const emitTime = Date.now();
+        broadcast(Ipc.GESTURE, {
+          gesture: fallbackReq.gesture,
+          spanCompleteTime: spanTime,
+          gestureEmitTime: emitTime,
+          segmentId,
+          expiresAt,
+        });
+      }
       pushState();
     }
 
-    const cleanSpoken = sanitizeSpeechForTts(reaction.cleanText.trim());
+    firstChunkHandled = true;
+
+    // 2. TTS 발화 대사 정제 (*행동 서술* 및 따옴표 완전 제거)
+    const cleanSpoken = sanitizeSpeechForTts(parsed.speechText.trim());
     if (!cleanSpoken) return;
 
     const p = (async () => {
       if (ttsPromiseQueue.length > 0) {
         await ttsPromiseQueue[ttsPromiseQueue.length - 1].catch(() => {});
       }
-            try {
+      try {
         const synthStart = performance.now();
         const play = settings.ttsProvider === "fish"
         ? await fishTts.speak(settings, cleanSpoken)
@@ -475,7 +543,7 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
         ? await irodoriTts.speak(settings, cleanSpoken)
         : await tts.speak(settings, cleanSpoken);
         const synthDurationMs = Math.round(performance.now() - synthStart);
-        broadcastTtsPlay(play);
+        broadcastTtsPlay(play, segmentId);
 
         if (!isFirstAudioReported) {
           isFirstAudioReported = true;
@@ -497,32 +565,101 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
   try {
     broadcast(Ipc.GESTURE, "thinking");
 
-    const raw = await completeChat({
-      provider: settings.provider,
-      model: settings.model,
-      ollamaUrl: settings.ollamaUrl,
-      geminiApiKey: settings.geminiApiKey,
-      geminiModel: settings.geminiModel,
-      easyProxyUrl: settings.easyProxyUrl,
-      messages: history,
-      imageBase64,
-      signal: abortSignal,
-      onDelta: (chunk) => {
-        accumulated += chunk;
-        sentenceBuffer += chunk;
-        broadcast(Ipc.LLM_DELTA, chunk);
+    let firstTokenReceived = false;
+    let attempts = 0;
+    const maxAttempts = 2; // At most 1 auto-retry
+    let raw = "";
 
-        const { chunks, remaining } = extractConversationalChunks(sentenceBuffer);
-        if (chunks.length > 0) {
-          sentenceBuffer = remaining;
-          for (const c of chunks) {
-            queueSentenceForTts(c);
-          }
+    while (attempts < maxAttempts) {
+      try {
+        providerHealth.setInferring(true);
+        raw = await completeChat({
+          provider: settings.provider,
+          model: settings.model,
+          ollamaUrl: settings.ollamaUrl,
+          geminiApiKey: settings.geminiApiKey,
+          geminiModel: settings.geminiModel,
+          easyProxyUrl: settings.easyProxyUrl,
+          messages: promptMessages,
+          imageBase64,
+          signal: abortSignal,
+          onDelta: (chunk) => {
+            firstTokenReceived = true;
+            accumulated += chunk;
+            broadcast(Ipc.LLM_DELTA, chunk);
+
+            const { completedActions, speechChunk } = actionSpanBuffer.processDelta(chunk);
+
+            if (completedActions.length > 0) {
+              handleActionCues(completedActions, speechChunk);
+            }
+
+            if (speechChunk) {
+              sentenceBuffer += speechChunk;
+              const { chunks, remaining } = extractConversationalChunks(sentenceBuffer);
+              if (chunks.length > 0) {
+                const chunkSpanTime = Date.now();
+                sentenceBuffer = remaining;
+                for (const c of chunks) {
+                  queueSentenceForTts(c, chunkSpanTime);
+                }
+              }
+            }
+
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[RP-Pipeline]", {
+                rawDelta: chunk,
+                streamBuffer: sentenceBuffer,
+                completedActions,
+                speechChunk,
+              });
+            }
+          },
+        });
+        providerHealth.recordInferenceSuccess();
+        break; // Inference successfully finished
+      } catch (err: any) {
+        attempts++;
+        if (abortSignal.aborted || err?.name === "AbortError") {
+          return;
         }
-      },
-    });
 
-    history.push({ role: "assistant", content: raw });
+        providerHealth.recordInferenceFailure(err);
+
+        // Auto-retry at most 1 time ONLY IF first token has not yet been received
+        if (!firstTokenReceived && attempts < maxAttempts) {
+          console.warn(`[LLM Retry] First token not yet emitted. Retrying attempt ${attempts + 1}/${maxAttempts} after 600ms backoff:`, err?.message || err);
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+
+        // Never auto-retry once the first token has emitted to prevent duplicate responses
+        if (firstTokenReceived) {
+          console.warn("[LLM Retry Guard] First token was already received; aborting retry to avoid duplicated responses.");
+        }
+
+        throw err;
+      } finally {
+        providerHealth.setInferring(false);
+      }
+    }
+
+    const { remainingActions, remainingSpeech } = actionSpanBuffer.flush();
+    if (remainingActions.length > 0) {
+      handleActionCues(remainingActions, remainingSpeech);
+    }
+    if (remainingSpeech) {
+      sentenceBuffer += remainingSpeech;
+    }
+
+    const fullParsed = ResponseParser.parse(raw, { mode: settings.chatMode });
+    memoryManager.addMessage({
+      role: "assistant",
+      content: fullParsed.speechText || fullParsed.displayProse || raw,
+      displayProse: fullParsed.displayProse || raw,
+      actionCues: fullParsed.actionCues,
+    });
+    sceneStateManager.processTurn(clean, fullParsed.speechText, fullParsed.actionCues);
     state.isThinking = false;
     pushState();
     // If in Tutor mode, auto-detect vocabulary lines and save to SRS
@@ -546,6 +683,7 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
 
     if (sentenceBuffer.trim()) {
       queueSentenceForTts(sentenceBuffer.trim());
+      sentenceBuffer = "";
     }
 
     await Promise.all(ttsPromiseQueue);
@@ -553,9 +691,18 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
     if (abortSignal.aborted || err?.name === "AbortError") {
       return;
     }
-    const msg = err instanceof LlmError ? err.message : String(err);
-    state.lastError = msg;
-    broadcast(Ipc.ERROR, msg);
+    const rawErrMsg = err instanceof LlmError ? err.message : String(err);
+    console.error("[Main onUserMessage Error]", err);
+
+    let friendlyMsg = "로컬 AI 연결을 다시 확인하고 있어요…";
+    if (providerHealth.getStatus() === "OFFLINE") {
+      friendlyMsg = "로컬 AI 연결이 원활하지 않습니다. Ollama 실행 상태를 확인해 주세요.";
+    } else if (rawErrMsg.includes("AbortError") || rawErrMsg.includes("canceled")) {
+      friendlyMsg = "응답이 취소되었습니다.";
+    }
+
+    state.lastError = friendlyMsg;
+    broadcast(Ipc.ERROR, friendlyMsg);
     pushState();
   } finally {
     busy = false;
@@ -565,11 +712,34 @@ async function handleUserText(text: string, imageBase64?: string): Promise<void>
 }
 
 function setupIpc(): void {
-  
+  ipcMain.on(Ipc.RECHECK_PROVIDER, async () => {
+    try {
+      const status = await providerHealth.checkNow();
+      state.providerHealth = status;
+      state.providerHealthMessage = providerHealth.getMessage();
+      if (status === "HEALTHY") {
+        state.lastError = null;
+      }
+      pushState();
+    } catch (err) {
+      console.warn("[Main] Manual RECHECK_PROVIDER error:", err);
+    }
+  });
+
   ipcMain.on(Ipc.TOGGLE_CHAT_MODE, () => {
-    settings.chatMode = settings.chatMode === "free" ? "tutor" : "free";
+    if (settings.chatMode === "free") settings.chatMode = "rp";
+    else if (settings.chatMode === "rp") settings.chatMode = "tutor";
+    else settings.chatMode = "free";
     saveSettings(settings);
     pushState();
+  });
+
+  ipcMain.on(Ipc.SET_CHAT_MODE, (_ev, mode: string) => {
+    if (mode === "free" || mode === "rp" || mode === "tutor") {
+      settings.chatMode = mode;
+      saveSettings(settings);
+      pushState();
+    }
   });
 
   ipcMain.on(Ipc.GET_SRS_CARDS, (ev) => {
@@ -606,11 +776,27 @@ function setupIpc(): void {
     saveSettings(settings);
     if (characterWin && !characterWin.isDestroyed()) {
       const wa = screen.getPrimaryDisplay().workArea;
+      const targetW = mode === "pip" ? 200 : 440;
+      const targetH = mode === "pip" ? 300 : 580;
+      characterWin.setMinimumSize(targetW, targetH);
+      characterWin.setMaximumSize(targetW, targetH);
       if (mode === "pip") {
-        characterWin.setSize(200, 300);
-        characterWin.setPosition(wa.x + wa.width - 224, wa.y + wa.height - 324);
+        characterWin.setBounds({
+          x: wa.x + wa.width - targetW - 24,
+          y: wa.y + wa.height - targetH - 24,
+          width: targetW,
+          height: targetH,
+        });
       } else {
-        characterWin.setSize(340, 540);
+        const b = characterWin.getBounds();
+        const safeX = Math.max(wa.x, Math.min(b.x, wa.x + wa.width - targetW - 12));
+        const safeY = Math.max(wa.y, Math.min(b.y, wa.y + wa.height - targetH - 12));
+        characterWin.setBounds({
+          x: safeX,
+          y: safeY,
+          width: targetW,
+          height: targetH,
+        });
       }
       characterWin.webContents.send(Ipc.SET_VIEW_MODE, mode);
     }
@@ -641,6 +827,7 @@ function setupIpc(): void {
     pushState();
     broadcast(Ipc.VOICES_LIST, loadVoiceCatalog());
     broadcast(Ipc.VRM_MODELS_LIST, scanVrmModels());
+    broadcast(Ipc.VRMA_MOTIONS_LIST, scanVrmaMotions());
   });
 
   ipcMain.on(Ipc.OPEN_EXTERNAL_URL, (_ev, targetUrl: unknown) => {
@@ -702,6 +889,64 @@ function setupIpc(): void {
         characterWin.webContents.send(Ipc.LOAD_VRM_MODEL, modelUrl);
       }
       pushState();
+    }
+  });
+
+  ipcMain.on(Ipc.SELECT_VRMA_FILE, async () => {
+    const res = await dialog.showOpenDialog({
+      title: "3D VRMA 모션 애니메이션 파일 선택",
+      properties: ["openFile"],
+      filters: [{ name: "VRM Animation (*.vrma)", extensions: ["vrma"] }],
+    });
+
+    if (!res.canceled && res.filePaths.length > 0) {
+      const src = res.filePaths[0];
+      const baseName = path.basename(src);
+
+      // Copy into public/vrma and dist/vrma
+      const targetDirs = [
+        path.join(process.cwd(), "public", "vrma"),
+        path.join(process.cwd(), "dist", "vrma"),
+      ];
+      for (const d of targetDirs) {
+        if (!fs.existsSync(d)) {
+          try { fs.mkdirSync(d, { recursive: true }); } catch {}
+        }
+        if (fs.existsSync(d)) {
+          fs.copyFileSync(src, path.join(d, baseName));
+        }
+      }
+
+      const motionUrl = "/vrma/" + baseName;
+      settings.vrmaMotionPath = motionUrl;
+      saveSettings(settings);
+
+      // Tell character window to hot-reload the new idle motion!
+      if (characterWin && !characterWin.isDestroyed()) {
+        characterWin.webContents.send(Ipc.LOAD_VRMA_MOTION, motionUrl);
+      }
+
+      pushState();
+      broadcast(Ipc.VRMA_MOTIONS_LIST, scanVrmaMotions());
+    }
+  });
+
+  ipcMain.on(Ipc.LOAD_VRMA_MOTION, (_ev, motionUrl: unknown) => {
+    if (typeof motionUrl === "string" && motionUrl.trim()) {
+      settings.vrmaMotionPath = motionUrl;
+      saveSettings(settings);
+      if (characterWin && !characterWin.isDestroyed()) {
+        characterWin.webContents.send(Ipc.LOAD_VRMA_MOTION, motionUrl);
+      }
+      pushState();
+    }
+  });
+
+  ipcMain.on(Ipc.PREVIEW_VRMA_MOTION, (_ev, motionUrl: unknown) => {
+    if (typeof motionUrl === "string" && motionUrl.trim()) {
+      if (characterWin && !characterWin.isDestroyed()) {
+        characterWin.webContents.send(Ipc.PREVIEW_VRMA_MOTION, motionUrl);
+      }
     }
   });
 
@@ -816,7 +1061,7 @@ function setupIpc(): void {
       const rawId = data.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
       const safeId = rawId || `custom_${Date.now()}`;
       const dstDir = path.join(process.cwd(), "assets", "tts", "voices", safeId);
-      const pythonExe = settings.voxcpmPythonPath || "C:\\Users\\a4jud\\VoxCPM\\.venv\\Scripts\\python.exe";
+      const pythonExe = toWindowlessPython(settings.voxcpmPythonPath || "C:\\Users\\a4jud\\VoxCPM\\.venv\\Scripts\\python.exe");
       const scriptPath = path.join(process.cwd(), "scripts", "add_voice.py");
       const promptText = (data.promptText || "안녕하세요! 만나서 반가워요.").trim();
 
@@ -827,7 +1072,9 @@ function setupIpc(): void {
         safeId,
         data.name.trim(),
         promptText,
-      ]);
+      ], {
+        windowsHide: true,
+      });
 
       let stdout = "";
       proc.stdout.on("data", (d) => { stdout += d.toString(); });
@@ -890,6 +1137,14 @@ function setupIpc(): void {
       characterWin.webContents.send(Ipc.LOAD_VRM_MODEL, settings.vrmModelPath);
     }
 
+    if (settings.userName || settings.callName || settings.relationship) {
+      characterCore.updatePersona({
+        userName: settings.userName || "마스터",
+        callName: settings.callName || "마스터",
+        relationship: settings.relationship || "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",
+      });
+    }
+
     saveSettings(settings);
     if (settings.pttKey !== prevKey) registerShortcuts(settings.pttKey);
     pushState();
@@ -901,7 +1156,7 @@ function setupIpc(): void {
       currentAbortController = null;
     }
     busy = false;
-    history = [];
+    memoryManager.clear();
     state.isThinking = false;
     state.lastError = null;
     state.ttsStatus = "idle";
@@ -925,10 +1180,17 @@ function setupIpc(): void {
     const dy = Math.round(Number(delta.dy) || 0);
     if (dx === 0 && dy === 0) return;
     try {
-      const [x, y] = characterWin.getPosition();
-      characterWin.setPosition(Math.round(x + dx), Math.round(y + dy));
+      const b = characterWin.getBounds();
+      const targetW = settings.viewMode === "pip" ? 200 : 440;
+      const targetH = settings.viewMode === "pip" ? 300 : 580;
+      characterWin.setBounds({
+        x: Math.round(b.x + dx),
+        y: Math.round(b.y + dy),
+        width: targetW,
+        height: targetH,
+      });
     } catch (err) {
-      console.warn("WINDOW_DRAG setPosition failed:", err);
+      console.warn("WINDOW_DRAG setBounds failed:", err);
     }
   });
 
@@ -940,9 +1202,17 @@ function setupIpc(): void {
 function autoLaunchOllama(): void {
   try {
     fetch("http://127.0.0.1:11434/api/tags", { signal: AbortSignal.timeout(1000) }).catch(() => {
-      const ollamaPath = "C:\\Users\\a4jud\\AppData\\Local\\Programs\\Ollama\\ollama.exe";
-      if (fs.existsSync(ollamaPath)) {
-        const proc = spawn(ollamaPath, ["serve"], {
+      const ollamaApp = "C:\\Users\\a4jud\\AppData\\Local\\Programs\\Ollama\\ollama app.exe";
+      const ollamaExe = "C:\\Users\\a4jud\\AppData\\Local\\Programs\\Ollama\\ollama.exe";
+      if (fs.existsSync(ollamaApp)) {
+        const proc = spawn(ollamaApp, [], {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        proc.unref();
+      } else if (fs.existsSync(ollamaExe)) {
+        const proc = spawn(ollamaExe, ["serve"], {
           detached: true,
           stdio: "ignore",
           windowsHide: true,
@@ -956,6 +1226,13 @@ function autoLaunchOllama(): void {
 app.whenReady().then(() => {
   autoLaunchOllama();
   settings = loadSettings();
+  if (settings.userName || settings.callName || settings.relationship) {
+    characterCore.updatePersona({
+      userName: settings.userName || "마스터",
+      callName: settings.callName || "마스터",
+      relationship: settings.relationship || "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",
+    });
+  }
   const cat = loadVoiceCatalog();
   if (cat.voices.length > 0 && !cat.voices.some((v) => v.id === settings.ttsVoiceId)) {
     settings.ttsVoiceId = cat.defaultId || cat.voices[0].id;
@@ -965,6 +1242,15 @@ app.whenReady().then(() => {
 
   // Prewarm VoxCPM worker in the background at startup so first synthesis is instant
   tts.prewarm(settings);
+
+  providerHealth.start(
+    () => settings,
+    (status, message) => {
+      state.providerHealth = status;
+      state.providerHealthMessage = message;
+      pushState();
+    }
+  );
 
   setupIpc();
   characterWin = createCharacterWindow();
@@ -985,6 +1271,7 @@ app.whenReady().then(() => {
 });
 
 app.on("will-quit", () => {
+  providerHealth.stop();
   globalShortcut.unregisterAll();
   tts.stopWorker();
 });

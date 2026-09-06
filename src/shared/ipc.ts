@@ -33,6 +33,10 @@ export const Ipc = {
   CLOSE_SETTINGS: "close-settings",
   LOAD_VRM_MODEL: "load-vrm-model",
   SELECT_VRM_FILE: "select-vrm-file",
+  LOAD_VRMA_MOTION: "load-vrma-motion",
+  SELECT_VRMA_FILE: "select-vrma-file",
+  PREVIEW_VRMA_MOTION: "preview-vrma-motion",
+  VRMA_MOTIONS_LIST: "vrma-motions-list",
   SELECT_AUDIO_FILE: "select-audio-file",
   TEST_FISH_VOICE: "test-fish-voice",
   SEARCH_FISH_MODELS: "search-fish-models",
@@ -44,13 +48,15 @@ export const Ipc = {
   REVIEW_SRS_CARD: "review-srs-card",
   SRS_CARDS_DATA: "srs-cards-data",
   TOGGLE_CHAT_MODE: "toggle-chat-mode",
+  SET_CHAT_MODE: "set-chat-mode",
   GET_OLLAMA_MODELS: "get-ollama-models",
-    OLLAMA_MODELS_LIST: "ollama-models-list",
+  OLLAMA_MODELS_LIST: "ollama-models-list",
   SET_VIEW_MODE: "set-view-mode",
   TOGGLE_MUTE: "toggle-mute",
   TOGGLE_CHAT_WINDOW: "toggle-chat-window",
   QUIT_APP: "quit-app",
   OPEN_EXTERNAL_URL: "open-external-url",
+  RECHECK_PROVIDER: "recheck-provider",
 } as const;
 
 export type IpcChannel = (typeof Ipc)[keyof typeof Ipc];

@@ -4,9 +4,9 @@ export type TtsProvider = "fish" | "voxcpm" | "irodori" | "web";
 
 export type TtsStatus = "idle" | "loading" | "synthesizing" | "speaking";
 
-export type GestureName = "idle" | "wave" | "nod" | "talk" | "cheer" | "sing" | "thinking" | "peace" | "shy" | "bow" | "curious" | "giggle" | "proud" | "explain" | "laugh" | "think";
+export type GestureName = "idle" | "wave" | "nod" | "talk" | "cheer" | "sing" | "thinking" | "peace" | "shy" | "bow" | "curious" | "giggle" | "proud" | "explain" | "laugh" | "think" | "shoot" | "spin";
 
-export type ChatMode = "free" | "tutor";
+export type ChatMode = "free" | "rp" | "tutor";
 export type ViewMode = "full" | "upper" | "pip";
 
 export type TtsVoice = {
@@ -56,6 +56,7 @@ export type AppSettings = {
   voxcpmDevice: string;
   characterScale: number;
   vrmModelPath: string;
+  vrmaMotionPath: string;
   chatMode: ChatMode;
   irodoriPythonPath: string;
   irodoriLoraId: string;
@@ -63,6 +64,9 @@ export type AppSettings = {
   fishApiKey: string;
   fishVoiceId: string;
   fishLatency: "low" | "balanced" | "normal";
+  userName?: string;
+  callName?: string;
+  relationship?: string;
 };
 
 export const defaultSettings: AppSettings = {
@@ -83,6 +87,7 @@ export const defaultSettings: AppSettings = {
   voxcpmDevice: "auto",
   characterScale: 1.0,
   vrmModelPath: "/models/HatsuneMikuNT.vrm",
+  vrmaMotionPath: "/models/idle_loop.vrma",
   chatMode: "free",
   irodoriPythonPath: "C:\\Users\\a4jud\\.vdc-engines\\Irodori-TTS\\.venv\\Scripts\\python.exe",
   irodoriLoraId: "Nilou3000",
@@ -90,6 +95,9 @@ export const defaultSettings: AppSettings = {
   fishApiKey: "",
   fishVoiceId: "acc8237220d8470985ec9be6c4c480a9",
   fishLatency: "low",
+  userName: "마스터",
+  callName: "마스터",
+  relationship: "서로 신뢰하고 편안하게 마음을 터놓는 가까운 파트너",
 };
 
 export type ChatRole = "user" | "assistant" | "system";
@@ -97,6 +105,8 @@ export type ChatRole = "user" | "assistant" | "system";
 export type ChatMessage = {
   role: ChatRole;
   content: string;
+  displayProse?: string;
+  actionCues?: string[];
   gesture?: GestureName;
   imageBase64?: string;
   tutorFeedback?: {
@@ -107,6 +117,8 @@ export type ChatMessage = {
 };
 
 export type EmotionName = "neutral" | "happy" | "angry" | "sad" | "surprised" | "relaxed";
+
+export type ProviderHealthStatus = "HEALTHY" | "DEGRADED" | "RECONNECTING" | "OFFLINE";
 
 export type AppState = {
   speaking: boolean;
@@ -121,4 +133,6 @@ export type AppState = {
   cardsDueCount: number;
   viewMode: ViewMode;
   isMuted: boolean;
+  providerHealth?: ProviderHealthStatus;
+  providerHealthMessage?: string | null;
 };
