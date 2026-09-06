@@ -140,6 +140,14 @@ root.innerHTML = `
               <input id="fishVoiceId" placeholder="acc8237220d8470985ec9be6c4c480a9" style="flex:1;" />
               <button id="btn-add-current-fav" type="button" style="background:rgba(255,215,0,0.15); border:1px solid rgba(255,215,0,0.4); color:#ffd700; font-size:10.5px; font-weight:700; border-radius:6px; padding:0 10px; cursor:pointer; white-space:nowrap;" title="현재 입력된 Voice ID를 즐겨찾기에 등록">⭐ 즐겨찾기 추가</button>
             </div>
+            <!-- 🎧 현재 선택된 보이스 이름 실시간 표시 배지 -->
+            <div id="fish-voice-info-bar" style="margin-top:5px; padding:5px 9px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,210,255,0.3); border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                <span style="font-size:10px; color:#8aa8b0; white-space:nowrap;">선택된 음성:</span>
+                <span id="fish-voice-name-text" style="font-size:11.5px; font-weight:700; color:#00d2ff; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">확인 중…</span>
+              </div>
+              <span id="fish-voice-type-badge" style="font-size:9.5px; padding:1px 6px; border-radius:4px; font-weight:600; white-space:nowrap; background:rgba(255,215,0,0.18); color:#ffd700; border:1px solid rgba(255,215,0,0.35);">⭐ 내 즐겨찾기</span>
+            </div>
           </label>
 
           <!-- ⭐ 내 즐겨찾기 보이스 -->
@@ -255,59 +263,54 @@ root.innerHTML = `
         <span id="voice-status-text" style="font-weight:700; color:#39c5bb;">🟢 준비 완료</span>
       </div>
 
-      <!-- Character Voice Profile & Multi-language Routing -->
+      <!-- Character Voice Profile (Unified Single Voice Mode) -->
       <div id="voice-profile-card" style="margin-top:10px; padding:12px; background:rgba(57,197,187,0.07); border:1px solid rgba(57,197,187,0.35); border-radius:10px;">
-        <div style="font-size:12.5px; font-weight:800; color:#39c5bb; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
-          <span>🎭 캐릭터 보이스 프로필 (언어별 스마트 라우팅)</span>
-          <span style="font-size:9.5px; background:rgba(57,197,187,0.2); color:#39c5bb; padding:2px 8px; border-radius:99px; font-weight:700;">KO/JA 분기</span>
+        <div style="font-size:12.5px; font-weight:800; color:#39c5bb; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span>🎭 캐릭터 보이스 프로필</span>
+            <span style="font-size:9.5px; background:rgba(100,255,150,0.15); color:#64ff96; border:1px solid rgba(100,255,150,0.35); padding:1px 6px; border-radius:4px; font-weight:700;">단일 음성 일관 모드</span>
+          </div>
+          <span style="font-size:9.5px; color:#8aa8b0;">⚡ 최저 지연 & 톤 유지</span>
         </div>
-        <div style="font-size:10px; color:#8aa8b0; line-height:1.4; margin-bottom:8px;">
-          * 발화 언어(한국어/일본어)에 맞춰 최적화된 TTS 엔진과 Reference 음성을 실시간으로 자동 선택합니다.
+        <div style="font-size:10px; color:#8aa8b0; line-height:1.4; margin-bottom:10px;">
+          * 언어별 분기로 인한 음색 왜곡 및 딜레이(2~4초)를 해결하기 위해, <b>하나의 통일된 단일 음성</b>으로 한국어/일본어/영어를 일관되게 발화합니다.
         </div>
 
-        <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
           <label style="font-size:11px; flex:1;">활성 보이스 프로필
             <select id="activeVoiceProfileSelect" style="width:100%; margin-top:2px;"></select>
           </label>
           <button id="btn-add-profile" type="button" style="height:32px; margin-top:16px; background:rgba(57,197,187,0.2); color:#39c5bb; border:1px solid rgba(57,197,187,0.4); border-radius:6px; padding:0 10px; font-size:10.5px; font-weight:700; cursor:pointer; white-space:nowrap;">+ 새 프로필</button>
+          <button id="btn-del-profile" type="button" style="height:32px; margin-top:16px; background:rgba(255,107,139,0.15); color:#ff6b8b; border:1px solid rgba(255,107,139,0.35); border-radius:6px; padding:0 8px; font-size:10.5px; font-weight:700; cursor:pointer; white-space:nowrap;" title="현재 프로필 삭제">🗑️ 삭제</button>
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-          <!-- Korean Config -->
-          <div style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(57,197,187,0.2);">
-            <div style="font-size:11px; font-weight:700; color:#39c5bb; margin-bottom:4px;">🇰🇷 한국어 (KO) 설정</div>
-            <label style="font-size:10px; margin-bottom:4px;">선호 엔진
-              <select id="profileKoEngine" style="width:100%; font-size:10.5px; padding:3px 6px;">
-                <option value="voxcpm">VoxCPM2 (RTX 5090 클론)</option>
-                <option value="fish">Fish Audio S2.1 Pro</option>
-                <option value="irodori">Irodori-TTS</option>
-                <option value="web">Web Speech</option>
+        <!-- Single Unified Profile Config Panel -->
+        <div style="padding:10px; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(57,197,187,0.25); display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; gap:8px;">
+            <label style="font-size:10.5px; flex:1;">통합 선호 음성 엔진
+              <select id="profileUnifiedEngine" style="width:100%; font-size:11px; padding:4px 6px; margin-top:2px;">
+                <option value="fish">🐟 Fish Audio S2.1 Pro (100% 무료 클라우드 / 리얼 감정·웃음)</option>
+                <option value="voxcpm">🎙️ VoxCPM2 (RTX 5090 로컬 애니메이션 제로샷 클론)</option>
+                <option value="irodori">🌸 Irodori-TTS (원어민 억양 LoRA)</option>
+                <option value="web">🌐 Web Speech (기본 시스템 음성)</option>
               </select>
-            </label>
-            <label style="font-size:10px;">Reference Audio / ID
-              <input id="profileKoRef" placeholder="miku_ko 또는 Fish Voice ID" style="font-size:10.5px; padding:3px 6px;" />
             </label>
           </div>
 
-          <!-- Japanese Config -->
-          <div style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(0,210,255,0.2);">
-            <div style="font-size:11px; font-weight:700; color:#00d2ff; margin-bottom:4px;">🇯🇵 일본어 (JA) 설정</div>
-            <label style="font-size:10px; margin-bottom:4px;">선호 엔진
-              <select id="profileJaEngine" style="width:100%; font-size:10.5px; padding:3px 6px;">
-                <option value="fish">Fish Audio S2.1 Pro</option>
-                <option value="voxcpm">VoxCPM2 (RTX 5090 클론)</option>
-                <option value="irodori">Irodori-TTS (원어민 억양)</option>
-                <option value="web">Web Speech</option>
-              </select>
-            </label>
-            <label style="font-size:10px;">Reference Audio / ID
-              <input id="profileJaRef" placeholder="Fish Voice ID 또는 WAV ID" style="font-size:10.5px; padding:3px 6px;" />
-            </label>
-          </div>
+          <label style="font-size:10.5px;">통합 참조 보이스 / Reference ID
+            <div style="display:flex; gap:6px; margin-top:2px;">
+              <input id="profileUnifiedRef" placeholder="Fish Voice ID 또는 VoxCPM WAV 음성 ID" style="flex:1; font-size:11px; padding:4px 8px;" />
+            </div>
+            <!-- Unified Voice Title Badge -->
+            <div id="profile-voice-name-badge" style="margin-top:4px; font-size:10.5px; display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:5px; border:1px solid rgba(57,197,187,0.2);">
+              <span style="color:#8aa8b0; font-size:9.5px;">현재 음성:</span>
+              <span id="profile-voice-title-display" style="font-weight:700; color:#39c5bb; font-size:11px;">-</span>
+            </div>
+          </label>
         </div>
 
-        <div style="font-size:9.5px; color:#8aa8b0; line-height:1.4;">
-          * 선호 엔진 실패 시 기본 폴백 엔진(VoxCPM2)으로 자동 대체됩니다.
+        <div style="font-size:9.5px; color:#8aa8b0; line-height:1.4; margin-top:6px;">
+          * 프로필을 전환하면 상단 TTS 제공자 및 캐릭터 목소리가 유기적으로 즉시 연동됩니다.
         </div>
       </div>
 
@@ -506,6 +509,10 @@ ttsProvSel.addEventListener("change", () => {
   const prov = ttsProvSel.value;
   updateTtsProviderUi(prov);
   window.miku.send(Ipc.SETTINGS_UPDATE, { ttsProvider: prov });
+  const ref = prov === "fish"
+    ? (fishVoiceIdInput?.value.trim() || "")
+    : (voiceSel?.value || "");
+  syncCurrentProfileVoiceFromExternal(prov as any, ref);
 });
 
 btnOpenFishSite?.addEventListener("click", () => {
@@ -529,14 +536,199 @@ btnOpenFishSite?.addEventListener("click", () => {
     }
   });
 
+  // --- Presets, Title Resolution, and Voice Interlock ---
+  const FISH_VOICE_PRESETS = [
+    { id: "acc8237220d8470985ec9be6c4c480a9", name: "🎵 미쿠 (글로벌)" },
+    { id: "6717a74323274cb296ea9a0da654c977", name: "🇯🇵 미쿠 (일본어)" },
+    { id: "5ac6fb7171ba419190700620738209d8", name: "⚡ 라이덴 쇼군" },
+    { id: "bd08be872bc440918674af072944ba12", name: "💧 후리나" },
+    { id: "4858e0be678c4449bf3a7646186edd42", name: "🌱 나히다" },
+    { id: "2879aac2931e450f8159d2f65cd918f4", name: "🔥 호두" },
+    { id: "7c0ab8e2b1714ce3a80f2622a5cc459c", name: "🌸 반디 (Firefly)" },
+    { id: "4c0be7e14fa24928b4f2541ca49b57d0", name: "🕷️ 카프카" },
+    { id: "ce8248e10ec54d509f75945ad58ccfb6", name: "⚔️ 프리렌" },
+    { id: "6eef1184091d4e96aceb90b4681a5400", name: "🎸 봇치" },
+    { id: "ffe41701970d4b339ef7906300716f99", name: "🥜 아냐" },
+    { id: "088d160c978f4e8ba98701af1f58f842", name: "🌸 아로나" },
+  ];
+
+  const fishVoiceTitleCache = new Map<string, string>();
+  let currentFavorites: FishVoiceFavorite[] = [];
+
+  const profileUnifiedEngine = document.getElementById("profileUnifiedEngine") as HTMLSelectElement | null;
+  const profileUnifiedRef = document.getElementById("profileUnifiedRef") as HTMLInputElement | null;
+  const profileVoiceTitleDisplay = document.getElementById("profile-voice-title-display") as HTMLElement | null;
+  const btnDelProfile = document.getElementById("btn-del-profile") as HTMLButtonElement | null;
+
+  function getFishVoiceTitleInfo(id?: string): { title: string; source: "fav" | "preset" | "cache" | "custom" | "empty" } {
+    const trimmed = (id || "").trim();
+    if (!trimmed) {
+      return { title: "선택된 음성 없음 (기본값 사용)", source: "empty" };
+    }
+    // 1. Check favorites
+    const fav = (currentFavorites || []).find((f) => f.id === trimmed)
+      || (localSettings?.fishFavorites || []).find((f) => f.id === trimmed);
+    if (fav) {
+      return { title: fav.title, source: "fav" };
+    }
+    // 2. Check presets
+    const preset = FISH_VOICE_PRESETS.find((p) => p.id === trimmed);
+    if (preset) {
+      return { title: preset.name, source: "preset" };
+    }
+    // 3. Check memory cache (from search/downloads/lookups)
+    if (fishVoiceTitleCache.has(trimmed)) {
+      return { title: fishVoiceTitleCache.get(trimmed)!, source: "cache" };
+    }
+    // 4. Custom ID fallback
+    const short = trimmed.length > 16 ? `${trimmed.substring(0, 8)}…${trimmed.substring(trimmed.length - 4)}` : trimmed;
+    return { title: `커스텀 ID (${short})`, source: "custom" };
+  }
+
+  function updateFishVoiceTitleBadge(): void {
+    const curId = fishVoiceIdInput?.value.trim();
+    const nameText = document.getElementById("fish-voice-name-text");
+    const typeBadge = document.getElementById("fish-voice-type-badge");
+    if (!nameText || !typeBadge) return;
+
+    const info = getFishVoiceTitleInfo(curId);
+    nameText.textContent = info.title;
+
+    if (info.source === "fav") {
+      typeBadge.style.display = "inline-block";
+      typeBadge.textContent = "⭐ 내 즐겨찾기";
+      typeBadge.style.background = "rgba(255,215,0,0.18)";
+      typeBadge.style.color = "#ffd700";
+      typeBadge.style.border = "1px solid rgba(255,215,0,0.35)";
+    } else if (info.source === "preset") {
+      typeBadge.style.display = "inline-block";
+      typeBadge.textContent = "🎵 기본 프리셋";
+      typeBadge.style.background = "rgba(57,197,187,0.18)";
+      typeBadge.style.color = "#39c5bb";
+      typeBadge.style.border = "1px solid rgba(57,197,187,0.35)";
+    } else if (info.source === "cache") {
+      typeBadge.style.display = "inline-block";
+      typeBadge.textContent = "🔥 라이브러리";
+      typeBadge.style.background = "rgba(0,210,255,0.18)";
+      typeBadge.style.color = "#00d2ff";
+      typeBadge.style.border = "1px solid rgba(0,210,255,0.35)";
+    } else if (info.source === "custom") {
+      typeBadge.style.display = "inline-block";
+      typeBadge.textContent = "✏️ 직접 입력 ID";
+      typeBadge.style.background = "rgba(255,255,255,0.1)";
+      typeBadge.style.color = "#a0b0b8";
+      typeBadge.style.border = "1px solid rgba(255,255,255,0.2)";
+      if (curId && curId.length >= 16) {
+        void tryResolveUnknownFishVoiceTitle(curId);
+      }
+    } else {
+      typeBadge.style.display = "none";
+    }
+  }
+
+  async function tryResolveUnknownFishVoiceTitle(id: string): Promise<void> {
+    if (!id || id.length < 16) return;
+    if (fishVoiceTitleCache.has(id)) return;
+    const k = fishApiKeyInput?.value.trim() || localSettings?.fishApiKey || "";
+    try {
+      const headers: Record<string, string> = { "User-Agent": "Mozilla/5.0" };
+      if (k) headers["Authorization"] = `Bearer ${k}`;
+      const resp = await fetch(`https://api.fish.audio/model/${encodeURIComponent(id)}`, { headers });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data?.title) {
+          fishVoiceTitleCache.set(id, data.title);
+          updateFishVoiceTitleBadge();
+          updateProfileVoiceBadge();
+        }
+      }
+    } catch {}
+  }
+
+  function updateProfileVoiceBadge(): void {
+    if (!profileVoiceTitleDisplay || !profileUnifiedEngine) return;
+    const eng = profileUnifiedEngine.value;
+    const ref = profileUnifiedRef?.value.trim() || "";
+    if (!ref) {
+      profileVoiceTitleDisplay.textContent = "(기본 음성)";
+      profileVoiceTitleDisplay.style.color = "#8aa8b0";
+      return;
+    }
+    if (eng === "fish") {
+      const info = getFishVoiceTitleInfo(ref);
+      profileVoiceTitleDisplay.textContent = info.title;
+      profileVoiceTitleDisplay.style.color = "#00d2ff";
+    } else if (eng === "voxcpm") {
+      profileVoiceTitleDisplay.textContent = `🎙️ VoxCPM (${ref})`;
+      profileVoiceTitleDisplay.style.color = "#ff8ba7";
+    } else if (eng === "irodori") {
+      profileVoiceTitleDisplay.textContent = `🌸 Irodori (${ref})`;
+      profileVoiceTitleDisplay.style.color = "#39c5bb";
+    } else {
+      profileVoiceTitleDisplay.textContent = "🌐 시스템 기본 음성";
+      profileVoiceTitleDisplay.style.color = "#e8fbff";
+    }
+  }
+
+  function syncCurrentProfileVoiceFromExternal(engine: string, voiceId: string): void {
+    if (!localSettings || !activeVoiceProfileSelect) return;
+    const activeId = activeVoiceProfileSelect.value;
+    const list = localSettings.voiceProfiles || [];
+    const p = list.find((x) => x.id === activeId);
+    if (!p) return;
+
+    p.preferredEngine = {
+      ...p.preferredEngine,
+      default: engine as any,
+      ko: engine as any,
+      ja: engine as any,
+      en: engine as any,
+    };
+
+    if (engine === "fish") {
+      if (!p.fish) p.fish = {};
+      p.fish.referenceId = voiceId;
+      p.fish.koReferenceId = voiceId;
+      p.fish.jaReferenceId = voiceId;
+    } else if (engine === "voxcpm") {
+      if (!p.voxcpm) p.voxcpm = {};
+      p.voxcpm.defaultReferenceWav = voiceId;
+      p.voxcpm.koReferenceWav = voiceId;
+      p.voxcpm.jaReferenceWav = voiceId;
+    }
+
+    if (profileUnifiedEngine) profileUnifiedEngine.value = engine;
+    if (profileUnifiedRef) profileUnifiedRef.value = voiceId;
+    updateProfileVoiceBadge();
+
+    localSettings.voiceProfiles = list;
+    window.miku.send(Ipc.SETTINGS_UPDATE, {
+      voiceProfiles: list,
+      activeVoiceProfileId: activeId,
+    });
+  }
+
+  fishVoiceIdInput?.addEventListener("input", () => {
+    const vid = fishVoiceIdInput.value.trim();
+    updateFishVoiceTitleBadge();
+    if (vid) {
+      localStorage.setItem("fishVoiceId", vid);
+      syncCurrentProfileVoiceFromExternal("fish", vid);
+    }
+    renderFavorites();
+  });
+
   fishVoiceIdInput?.addEventListener("change", () => {
     const vid = fishVoiceIdInput.value.trim();
+    updateFishVoiceTitleBadge();
     if (vid) {
       localStorage.setItem("fishVoiceId", vid);
       window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: vid });
+      syncCurrentProfileVoiceFromExternal("fish", vid);
     }
+    renderFavorites();
   });
-  
+
   document.querySelectorAll(".btn-fish-preset").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = (btn as HTMLElement).dataset.id;
@@ -544,6 +736,9 @@ btnOpenFishSite?.addEventListener("click", () => {
         fishVoiceIdInput.value = id;
         localStorage.setItem("fishVoiceId", id);
         window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: id, ttsProvider: "fish" });
+        updateFishVoiceTitleBadge();
+        syncCurrentProfileVoiceFromExternal("fish", id);
+        renderFavorites();
       }
     });
   });
@@ -584,7 +779,6 @@ const fishFilterSort = document.getElementById("fish-filter-sort") as HTMLSelect
 const btnAddCurrentFav = document.getElementById("btn-add-current-fav") as HTMLButtonElement;
 const fishResultsCount = document.getElementById("fish-results-count") as HTMLSpanElement;
 const fishSortLabel = document.getElementById("fish-sort-label") as HTMLSpanElement;
-let currentFavorites: FishVoiceFavorite[] = [];
 let currentRankingPage = 1;
 let currentLoadedCount = 0;
 let lastQueryType: "ranking" | "search" = "ranking";
@@ -602,6 +796,7 @@ function loadFavorites(fromSettings?: FishVoiceFavorite[]) {
     } catch {}
   }
   renderFavorites();
+  updateFishVoiceTitleBadge();
 }
 
 function saveFavorites(nextFavs: FishVoiceFavorite[]) {
@@ -611,6 +806,7 @@ function saveFavorites(nextFavs: FishVoiceFavorite[]) {
   } catch {}
   window.miku.send(Ipc.SETTINGS_UPDATE, { fishFavorites: currentFavorites });
   renderFavorites();
+  updateFishVoiceTitleBadge();
   updateCardFavoriteButtons();
 }
 
@@ -631,19 +827,22 @@ function renderFavorites() {
   currentFavorites.forEach((fav) => {
     const chip = document.createElement("div");
     const isSelected = curVid === fav.id;
-    chip.style.cssText = `display:inline-flex; align-items:center; background:${isSelected ? 'rgba(57,197,187,0.25)' : 'rgba(255,215,0,0.15)'}; border:1px solid ${isSelected ? 'rgba(57,197,187,0.6)' : 'rgba(255,215,0,0.35)'}; border-radius:4px; overflow:hidden; font-size:10px; margin-bottom:2px;`;
+    chip.style.cssText = `display:inline-flex; align-items:center; background:${isSelected ? 'rgba(0,210,255,0.22)' : 'rgba(255,215,0,0.15)'}; border:1px solid ${isSelected ? '#00d2ff' : 'rgba(255,215,0,0.35)'}; border-radius:4px; overflow:hidden; font-size:10px; margin-bottom:2px; box-shadow:${isSelected ? '0 0 8px rgba(0,210,255,0.35)' : 'none'};`;
 
     const selectBtn = document.createElement("button");
     selectBtn.type = "button";
     selectBtn.title = `클릭하여 '${fav.title}' 보이스 즉시 적용`;
     selectBtn.style.cssText = "background:transparent; border:none; color:#e8fbff; padding:2px 6px; cursor:pointer; display:flex; align-items:center; gap:3px;";
     const langBadge = (fav.languages || []).length > 0 ? `<span style="color:#8aa8b0; font-size:8.5px;">[${fav.languages!.join(",")}]</span>` : "";
-    selectBtn.innerHTML = `<span style="color:#ffd700;">⭐</span><span style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:${isSelected ? '700' : '500'};">${fav.title}</span>${langBadge}`;
+    const activeBadge = isSelected ? `<span style="color:#64ff96; font-size:9px; font-weight:800; margin-left:2px;">[선택됨]</span>` : "";
+    selectBtn.innerHTML = `<span style="color:#ffd700;">⭐</span><span style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:${isSelected ? '700' : '500'};">${fav.title}</span>${langBadge}${activeBadge}`;
     selectBtn.addEventListener("click", () => {
       if (fishVoiceIdInput) {
         fishVoiceIdInput.value = fav.id;
         localStorage.setItem("fishVoiceId", fav.id);
         window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: fav.id, ttsProvider: "fish" });
+        updateFishVoiceTitleBadge();
+        syncCurrentProfileVoiceFromExternal("fish", fav.id);
         renderFavorites();
       }
     });
@@ -728,10 +927,13 @@ btnAddCurrentFav?.addEventListener("click", () => {
     alert("이미 즐겨찾기에 등록되어 있는 보이스 ID입니다.");
     return;
   }
-  const name = prompt("즐겨찾기에 등록할 보이스 이름을 입력하세요:", "내 보이스");
+  const defaultTitle = getFishVoiceTitleInfo(id).title || "내 보이스";
+  const cleanDefault = defaultTitle.startsWith("커스텀") ? "내 보이스" : defaultTitle;
+  const name = prompt("즐겨찾기에 등록할 보이스 이름을 입력하세요:", cleanDefault);
   if (name && name.trim()) {
     const next = [{ id, title: name.trim() }, ...currentFavorites];
     saveFavorites(next);
+    updateFishVoiceTitleBadge();
   }
 });
 
@@ -1032,6 +1234,9 @@ window.miku.on(Ipc.SEARCH_FISH_MODELS, (res: unknown) => {
         window.miku.send(Ipc.SETTINGS_UPDATE, { fishVoiceId: item._id, ttsProvider: "fish" });
         selBtn.textContent = "✓ 적용됨";
         selBtn.style.background = "#64ff96";
+        fishVoiceTitleCache.set(item._id, item.title);
+        updateFishVoiceTitleBadge();
+        syncCurrentProfileVoiceFromExternal("fish", item._id);
         renderFavorites();
         setTimeout(() => { selBtn.textContent = "선택"; selBtn.style.background = "#00d2ff"; }, 1500);
       }
@@ -1190,8 +1395,10 @@ voiceSel.addEventListener("change", () => {
     vText.innerHTML = `<span style="color:#64ff96;">✅ ${chosen} 보이스 0초 즉시 적용됨</span>`;
   }
   if (chosen) {
+    if (localSettings) localSettings.ttsVoiceId = chosen;
     window.miku.send(Ipc.SETTINGS_UPDATE, { ttsVoiceId: chosen, ttsProvider: "voxcpm" });
     window.miku.send(Ipc.PREVIEW_VOICE, chosen);
+    syncCurrentProfileVoiceFromExternal("voxcpm", chosen);
   }
 });
 
@@ -1310,6 +1517,7 @@ const studioVoiceName = document.getElementById("studio-voice-name") as HTMLInpu
 const btnChooseAudio = document.getElementById("btn-choose-audio") as HTMLButtonElement;
 const selectedAudioName = document.getElementById("selected-audio-name") as HTMLSpanElement;
 const studioPromptText = document.getElementById("studio-prompt-text") as HTMLInputElement;
+const profileCloneMode = document.getElementById("profileCloneMode") as HTMLSelectElement | null;
 const btnCreateVoice = document.getElementById("btn-create-voice") as HTMLButtonElement;
 const studioStatus = document.getElementById("studio-status") as HTMLDivElement;
 
@@ -1395,7 +1603,7 @@ window.miku.on(Ipc.CREATE_CUSTOM_VOICE, (res: unknown) => {
     if (voiceSel) {
       voiceSel.value = r.voice.id;
     }
-    if (profileKoRef) profileKoRef.value = r.voice.id;
+    if (profileUnifiedRef) profileUnifiedRef.value = r.voice.id;
     window.miku.send(Ipc.SETTINGS_UPDATE, {
       ttsVoiceId: r.voice.id,
       voiceProfiles: localSettings?.voiceProfiles,
@@ -1411,14 +1619,9 @@ window.miku.on(Ipc.CREATE_CUSTOM_VOICE, (res: unknown) => {
   }
 });
 
-// --- Character Voice Profile Management Logic ---
+// --- Character Voice Profile Management Logic (Unified Single Voice Mode) ---
 const activeVoiceProfileSelect = document.getElementById("activeVoiceProfileSelect") as HTMLSelectElement | null;
 const btnAddProfile = document.getElementById("btn-add-profile") as HTMLButtonElement | null;
-const profileKoEngine = document.getElementById("profileKoEngine") as HTMLSelectElement | null;
-const profileKoRef = document.getElementById("profileKoRef") as HTMLInputElement | null;
-const profileJaEngine = document.getElementById("profileJaEngine") as HTMLSelectElement | null;
-const profileJaRef = document.getElementById("profileJaRef") as HTMLInputElement | null;
-const profileCloneMode = document.getElementById("profileCloneMode") as HTMLSelectElement | null;
 
 function populateVoiceProfiles(profiles: CharacterVoiceProfile[], activeId?: string) {
   if (!activeVoiceProfileSelect) return;
@@ -1437,21 +1640,20 @@ function populateVoiceProfiles(profiles: CharacterVoiceProfile[], activeId?: str
 }
 
 function updateProfileFields(profile: CharacterVoiceProfile) {
-  const koEng = profile.preferredEngine?.ko || "voxcpm";
-  const jaEng = profile.preferredEngine?.ja || "fish";
-  if (profileKoEngine) profileKoEngine.value = koEng;
-  if (profileKoRef) {
-    profileKoRef.value = koEng === "fish"
-      ? (profile.fish?.koReferenceId || localSettings?.fishVoiceId || "")
-      : (profile.voxcpm?.koReferenceWav || localSettings?.ttsVoiceId || "");
+  const eng = profile.preferredEngine?.default || profile.preferredEngine?.ko || profile.preferredEngine?.ja || "fish";
+  if (profileUnifiedEngine) profileUnifiedEngine.value = eng;
+  if (profileUnifiedRef) {
+    if (eng === "fish") {
+      profileUnifiedRef.value = profile.fish?.referenceId || profile.fish?.koReferenceId || profile.fish?.jaReferenceId || localSettings?.fishVoiceId || "";
+    } else if (eng === "voxcpm") {
+      profileUnifiedRef.value = profile.voxcpm?.defaultReferenceWav || profile.voxcpm?.koReferenceWav || profile.voxcpm?.jaReferenceWav || localSettings?.ttsVoiceId || "";
+    } else if (eng === "irodori") {
+      profileUnifiedRef.value = profile.irodori?.loraId || localSettings?.irodoriLoraId || "Nilou3000";
+    } else {
+      profileUnifiedRef.value = "";
+    }
   }
-  if (profileJaEngine) profileJaEngine.value = jaEng;
-  if (profileJaRef) {
-    profileJaRef.value = jaEng === "fish"
-      ? (profile.fish?.jaReferenceId || "6717a74323274cb296ea9a0da654c977")
-      : (profile.voxcpm?.jaReferenceWav || "");
-  }
-  if (profileCloneMode) profileCloneMode.value = profile.voxcpm?.cloneMode || "reference";
+  updateProfileVoiceBadge();
 }
 
 function syncCurrentProfileFromUi() {
@@ -1462,40 +1664,54 @@ function syncCurrentProfileFromUi() {
   if (idx < 0) return;
 
   const p = list[idx];
-  const koEng = (profileKoEngine?.value || "voxcpm") as any;
-  const jaEng = (profileJaEngine?.value || "fish") as any;
-  const koRef = profileKoRef?.value.trim() || "";
-  const jaRef = profileJaRef?.value.trim() || "";
-  const cloneMode = (profileCloneMode?.value || "reference") as any;
+  const eng = (profileUnifiedEngine?.value || "fish") as any;
+  const ref = profileUnifiedRef?.value.trim() || "";
 
   p.preferredEngine = {
     ...p.preferredEngine,
-    ko: koEng,
-    ja: jaEng,
+    default: eng,
+    ko: eng,
+    ja: eng,
+    en: eng,
   };
 
   if (!p.voxcpm) p.voxcpm = {};
   if (!p.fish) p.fish = {};
 
-  if (koEng === "voxcpm" && koRef) p.voxcpm.koReferenceWav = koRef;
-  if (koEng === "fish" && koRef) {
-    if (!koRef.includes("/") && !koRef.includes("\\") && !koRef.endsWith(".wav")) {
-      p.fish.koReferenceId = koRef;
-    }
+  if (eng === "fish" && ref) {
+    p.fish.referenceId = ref;
+    p.fish.koReferenceId = ref;
+    p.fish.jaReferenceId = ref;
+    localSettings.fishVoiceId = ref;
+    if (fishVoiceIdInput) fishVoiceIdInput.value = ref;
+    localStorage.setItem("fishVoiceId", ref);
+    updateFishVoiceTitleBadge();
+    renderFavorites();
+  } else if (eng === "voxcpm" && ref) {
+    p.voxcpm.defaultReferenceWav = ref;
+    p.voxcpm.koReferenceWav = ref;
+    p.voxcpm.jaReferenceWav = ref;
+    localSettings.ttsVoiceId = ref;
+    if (voiceSel) voiceSel.value = ref;
   }
-  if (jaEng === "voxcpm" && jaRef) p.voxcpm.jaReferenceWav = jaRef;
-  if (jaEng === "fish" && jaRef) {
-    if (!jaRef.includes("/") && !jaRef.includes("\\") && !jaRef.endsWith(".wav")) {
-      p.fish.jaReferenceId = jaRef;
-    }
+
+  // Interlock top provider
+  localSettings.ttsProvider = eng;
+  if (ttsProvSel) {
+    ttsProvSel.value = eng;
+    updateTtsProviderUi(eng);
   }
-  p.voxcpm.cloneMode = cloneMode;
+
+  updateProfileVoiceBadge();
 
   localSettings.voiceProfiles = list;
   localSettings.activeVoiceProfileId = activeId;
   window.miku.send(Ipc.SETTINGS_UPDATE, {
     voiceProfiles: list,
     activeVoiceProfileId: activeId,
+    ttsProvider: eng,
+    fishVoiceId: localSettings.fishVoiceId,
+    ttsVoiceId: localSettings.ttsVoiceId,
   });
 }
 
@@ -1506,25 +1722,60 @@ activeVoiceProfileSelect?.addEventListener("change", () => {
   const p = (localSettings.voiceProfiles || []).find((x) => x.id === chosenId);
   if (p) {
     updateProfileFields(p);
+    const eng = p.preferredEngine?.default || p.preferredEngine?.ko || p.preferredEngine?.ja || "fish";
+    localSettings.ttsProvider = eng;
+    if (ttsProvSel) {
+      ttsProvSel.value = eng;
+      updateTtsProviderUi(eng);
+    }
+    if (eng === "fish") {
+      const fishId = p.fish?.referenceId || p.fish?.koReferenceId || p.fish?.jaReferenceId || localSettings.fishVoiceId;
+      if (fishId) {
+        localSettings.fishVoiceId = fishId;
+        if (fishVoiceIdInput) fishVoiceIdInput.value = fishId;
+        localStorage.setItem("fishVoiceId", fishId);
+        updateFishVoiceTitleBadge();
+        renderFavorites();
+      }
+    } else if (eng === "voxcpm") {
+      const voxId = p.voxcpm?.defaultReferenceWav || p.voxcpm?.koReferenceWav || p.voxcpm?.jaReferenceWav || localSettings.ttsVoiceId;
+      if (voxId) {
+        localSettings.ttsVoiceId = voxId;
+        if (voiceSel) voiceSel.value = voxId;
+      }
+    }
+    window.miku.send(Ipc.SETTINGS_UPDATE, {
+      activeVoiceProfileId: chosenId,
+      ttsProvider: eng,
+      fishVoiceId: localSettings.fishVoiceId,
+      ttsVoiceId: localSettings.ttsVoiceId,
+    });
   }
-  window.miku.send(Ipc.SETTINGS_UPDATE, { activeVoiceProfileId: chosenId });
 });
 
-profileKoEngine?.addEventListener("change", () => {
-  const koEng = profileKoEngine?.value || "voxcpm";
-  const list = localSettings?.voiceProfiles || [];
-  const current = list.find((p) => p.id === activeVoiceProfileSelect?.value);
-  if (profileKoRef && current) {
-    profileKoRef.value = koEng === "fish"
-      ? (current.fish?.koReferenceId || localSettings?.fishVoiceId || "")
-      : (current.voxcpm?.koReferenceWav || localSettings?.ttsVoiceId || "");
+profileUnifiedEngine?.addEventListener("change", () => {
+  const eng = profileUnifiedEngine.value;
+  if (profileUnifiedRef && localSettings) {
+    if (eng === "fish") {
+      profileUnifiedRef.value = localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
+    } else if (eng === "voxcpm") {
+      profileUnifiedRef.value = localSettings.ttsVoiceId || "nilou";
+    } else if (eng === "irodori") {
+      profileUnifiedRef.value = localSettings.irodoriLoraId || "Nilou3000";
+    } else {
+      profileUnifiedRef.value = "";
+    }
   }
   syncCurrentProfileFromUi();
 });
-profileKoRef?.addEventListener("change", syncCurrentProfileFromUi);
-profileJaEngine?.addEventListener("change", syncCurrentProfileFromUi);
-profileJaRef?.addEventListener("change", syncCurrentProfileFromUi);
-profileCloneMode?.addEventListener("change", syncCurrentProfileFromUi);
+
+profileUnifiedRef?.addEventListener("input", () => {
+  updateProfileVoiceBadge();
+});
+
+profileUnifiedRef?.addEventListener("change", () => {
+  syncCurrentProfileFromUi();
+});
 
 btnAddProfile?.addEventListener("click", () => {
   const name = prompt("새 보이스 프로필 이름을 입력하세요:", "새 캐릭터 프로필");
@@ -1532,23 +1783,28 @@ btnAddProfile?.addEventListener("click", () => {
   if (!localSettings) return;
 
   const newId = "profile_" + Date.now();
+  const curEng = (profileUnifiedEngine?.value || localSettings.ttsProvider || "fish") as any;
+  const curFishRef = localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9";
+  const curVoxRef = localSettings.ttsVoiceId || "nilou";
+
   const newProfile: CharacterVoiceProfile = {
     id: newId,
     displayName: name.trim(),
     preferredEngine: {
-      ko: "voxcpm",
-      ja: "fish",
-      en: "fish",
-      default: "voxcpm",
+      default: curEng,
+      ko: curEng,
+      ja: curEng,
+      en: curEng,
     },
     fish: {
-      referenceId: localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9",
-      koReferenceId: localSettings.fishVoiceId || "acc8237220d8470985ec9be6c4c480a9",
-      jaReferenceId: "6717a74323274cb296ea9a0da654c977",
+      referenceId: curFishRef,
+      koReferenceId: curFishRef,
+      jaReferenceId: curFishRef,
     },
     voxcpm: {
-      koReferenceWav: localSettings.ttsVoiceId || "nilou",
-      jaReferenceWav: localSettings.ttsVoiceId || "nilou",
+      defaultReferenceWav: curVoxRef,
+      koReferenceWav: curVoxRef,
+      jaReferenceWav: curVoxRef,
       cloneMode: "reference",
     },
   };
@@ -1561,5 +1817,29 @@ btnAddProfile?.addEventListener("click", () => {
   window.miku.send(Ipc.SETTINGS_UPDATE, {
     voiceProfiles: list,
     activeVoiceProfileId: newId,
+  });
+});
+
+btnDelProfile?.addEventListener("click", () => {
+  if (!localSettings || !activeVoiceProfileSelect) return;
+  const list = localSettings.voiceProfiles || [];
+  if (list.length <= 1) {
+    alert("최소 1개의 보이스 프로필은 유지되어야 합니다.");
+    return;
+  }
+  const curId = activeVoiceProfileSelect.value;
+  const curProfile = list.find((p) => p.id === curId);
+  const name = curProfile ? curProfile.displayName : curId;
+  if (!confirm(`'${name}' 프로필을 삭제하시겠습니까?`)) return;
+
+  const nextList = list.filter((p) => p.id !== curId);
+  const nextActiveId = nextList[0].id;
+  localSettings.voiceProfiles = nextList;
+  localSettings.activeVoiceProfileId = nextActiveId;
+
+  populateVoiceProfiles(nextList, nextActiveId);
+  window.miku.send(Ipc.SETTINGS_UPDATE, {
+    voiceProfiles: nextList,
+    activeVoiceProfileId: nextActiveId,
   });
 });
